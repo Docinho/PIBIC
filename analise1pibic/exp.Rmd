@@ -1,0 +1,188 @@
+---
+title: "Familiarização com os dados"
+author: "Lívia Cavalcanti"
+date: "21 de outubro de 2017"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(plyr)
+library(ggplot2) 
+library(plyr)
+library(dplyr)
+library(plotly)
+library(Hmisc)
+```
+
+Pacotes utilizados
+```{r eval = F, include=T}
+library(plyr)
+library(ggplot2) 
+library(plyr)
+library(dplyr)
+library(plotly)
+library(Hmisc)
+```
+
+Definição da variável que armazenará os dados principais:
+```{r eval = TRUE, echo =TRUE}
+setwd("~/Área de Trabalho/pastaPibic/pastaCorrente")
+dados_UFCG <- read.csv("~/Área de Trabalho/programasPIBIC/alunosUFCGAnon.csv")
+```
+
+# Primeira pergunta
+
+*_Qual o impacto das greves no rendimento dos alunos?_*
+
+Como as greves causam muito impacto na vida de todo o corpo universitário, decidi verificar seus impactos no número de reprovações. De modo rasoável, separei os períodos 2003.4, 2004.1, 2005.1 e 2012.1, nos quais verifiquei ter ocorrido greve, do demais. A partir disso, agrupei os dados por <span style:"text-decoration: i;">Situação<span style:"text-decoration: i;"/> e verifiquei sua porcentagem ou per-mil, ambos para facilitar a visualização. 
+
+```{r eval = TRUE, echo = TRUE}
+# Periodos em que houve greve
+condition <- c(2003.1, 2004.1, 2005.1, 2012.1, 2015.1)
+# Comparando quantidade de faltas, trancamentos e reprovacoes (sem diferenca significativa, no geral, mas há aumento no numero de trancamentos)
+num_greve = 97522
+num_nao_greve = 846240
+
+# Separando os dados dos períodos que houve greve
+dados_greve <- dados_UFCG %>%
+  filter(as.character(Periodo) == "2003.1" | as.character(Periodo) == "2004.1" | as.character(Periodo) == "2005.1" | as.character(Periodo) == "2012.1")
+
+# Contagem das situações dos alunos (Reprovado, Reprovado por falta, Trancado, Aprovado) de quando houve greve
+occurrance  <- data.frame(xtabs(~Periodo + Situacao, dados_greve)) %>% mutate(Porcentagem = Freq/num_greve * 100)
+
+# Separando os dados dos períodos que não houve greve
+dados_nao_greve <- dados_UFCG %>%
+  filter(as.character(Periodo) != "2003.1" & as.character(Periodo) != "2004.1" & as.character(Periodo) != "2005.1" & as.character(Periodo) != "2012.1") %>%
+  group_by(Periodo)
+# Contagem das situações dos alunos (Reprovado, Reprovado por falta, Trancado, Aprovado) de quando não houve greve
+occurrance_nao_greve <- data.frame(xtabs(~Periodo + Situacao, dados_nao_greve)) %>% mutate(Porcentagem = Freq/num_nao_greve * 1000)
+
+```
+
+
+
+```{r eval = TRUE, echo =TRUE, fig.width=7, fig.height=6}
+# Plot do número de situações de quando houve greve
+ggplot(occurrance, aes(x =  occurrance$Situacao,y = occurrance$Freq, fill = occurrance$Periodo)) +
+  geom_bar(stat="identity") + ylab("Quantidade de alunos") + xlab("Situacao do aluno") +
+labs(fill = "Periodo")
+
+#Nao passa boa representatividade
+# ggplot(occurances_nao_greve, aes(x =  occurances_nao_greve$Situacao,y = occurances_nao_greve$Porcentagem, fill = occurances_nao_greve$Periodo)) +
+#   geom_bar(stat="identity", position = "dodge") + ylab("Quantidade de alunos") + xlab("Situacao do aluno") +
+#   labs(fill = "Periodo")
+
+
+
+# # Plot de porcentagem de situações por periodo de quando houve greve
+# ggplot(occurrance, aes(group =  occurrance$Situacao,y = occurrance$Porcentagem, x = occurrance$Periodo, color = occurrance$Situacao)) +
+#   geom_line(stat="identity") + ylab("Porcentagem de alunos(100%)") + xlab("Periodo") +
+#   labs(color = "Periodo")
+# 
+# # Plot per mil de situações por periodo de quando não houve greve
+# ggplot(occurrance_nao_greve, aes(group =  occurrance_nao_greve$Situacao,y = occurrance_nao_greve$Porcentagem, x = occurrance_nao_greve$Periodo, color = occurrance_nao_greve$Situacao)) +
+#   geom_line(stat="identity") + ylab("Porcentagem de alunos(1000%)") + xlab("Periodo") + theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+#   labs(color = "Periodo")
+
+```
+
+
+Olhando especificamente para Computação
+```{r eval = TRUE, echo =TRUE}
+## Situação dos alunos apenas para cc
+# Filtrando alunos de cc
+occurrance_cc <-filter(dados_greve, Cod_Curso == 14102100)
+occurrance_nao_greve_cc <- dados_nao_greve %>% filter(Cod_Curso == 14102100)
+
+# Contando a frequencia das situacoes e fazendo porcentagem para periodos de greve
+occurrance_cc <- data.frame(xtabs(~Periodo + Situacao, occurrance_cc)) 
+num_greve_cc = sum(occurrance_cc$Freq, na.rm = T) 
+occurrance_cc <- occurrance_cc %>% mutate(Porcentagem = Freq/num_greve_cc * 100)
+
+# Contando a frequencia das situacoes e fazendo porcentagem para periodos de não-greve
+occurrance_nao_greve_cc <- data.frame(xtabs(~Periodo + Situacao, occurrance_nao_greve_cc)) 
+num_nao_greve_cc = sum(occurrance_nao_greve_cc$Freq, na.rm = T)
+occurrance_nao_greve_cc <- occurrance_nao_greve_cc %>% mutate(Porcentagem = Freq/num_nao_greve_cc *100)
+```
+
+``` {r eval = TRUE, echo =TRUE, fig.width=7, fig.height=6}
+# Plotando grafico para Computacao comparando a situacao dos alunos
+#para quando houve e quando não houve greve, separadamente
+ggplot(occurrance_cc, aes(group =  occurrance_cc$Situacao,y = occurrance_cc$Porcentagem, x = occurrance_cc$Periodo, color = occurrance_cc$Situacao)) +
+  geom_line(stat="identity") + ylab("Porcentagem de alunos(100%)") + xlab("Periodo") +
+  labs(color = "Periodo")
+
+ggplot(occurrance_nao_greve_cc, aes(group =  occurrance_nao_greve_cc$Situacao,y = occurrance_nao_greve_cc$Porcentagem, x = occurrance_nao_greve_cc$Periodo, color = occurrance_nao_greve_cc$Situacao)) +
+  geom_line(stat="identity") + ylab("Porcentagem de alunos(100%)") + xlab("Periodo") + theme(axis.text.x = element_text(angle = 90, hjust = 1))
+labs(color = "Periodo")
+```
+
+# Segunda Pergunta
+
+*_Há impacto o período de ingresso (.1 ou .2) no rendimento do aluno?_*
+
+A fim de se verificar a necessidade de medidas pedagógicas alternativas, caso necessário, verifiquei a média dos alunos do primeiro perído do ano e do segundo período do ano para cada curso ao longo do intervalo dos dados, checando a possível existência de diferença de rendimento.
+
+```{r dados_primeiro_periodo, eval = TRUE, echo =TRUE, include = TRUE}
+detach(package:plyr)
+dados_primeiro_periodo <- filter(dados_UFCG, Periodo_Relativo == 1, !is.na(Media_Disciplina)) %>% 
+  group_by(Matricula, Cod_Curso) %>% 
+  mutate(Media_Aluno = mean(Media_Disciplina, rm.na = T)) 
+```
+
+
+```{r eval = TRUE, echo = TRUE}
+# Checagem de diferença estatística
+dados_periodo.1 <- dados_primeiro_periodo %>% filter((Periodo*10)%%2 != 0)
+dados_periodo.2 <- dados_primeiro_periodo %>% filter((Periodo*10)%%2 == 0 && Nome_Curso %in% dados_periodo.1$Nome_Curso)
+dados_periodo.1 <- dados_periodo.1 %>% filter(Nome_Curso %in% dados_periodo.2$Nome_Curso)
+t.test(dados_periodo.1$Media_Aluno, dados_periodo.2$Media_Aluno)  
+
+# Transformando o Perido em 0, se .1 e 1, caso contrário
+dados_primeiro_periodo <- dados_primeiro_periodo %>% 
+  group_by(Periodo, Nome_Curso) %>% mutate(Periodo_Ano = (Periodo*10)%%2, Media_Curso = mean(Media_Aluno)) 
+```
+
+Gráficos:
+``` {r eval = TRUE, echo =TRUE, fig.width=16, fig.height=6}
+plot_ly(data = dados_primeiro_periodo, x = as.character(dados_primeiro_periodo$Periodo), y = dados_primeiro_periodo$Media_Curso, symbol = dados_primeiro_periodo$Periodo_Ano, color = dados_primeiro_periodo$Nome_Curso, type = "scatter", legendgroup =~dados_primeiro_periodo$Nome_Curso )
+```
+
+Para melhor visualização, separei por áreas.
+
+``` {r eval = TRUE, echo = TRUE}
+# plot humanas
+cursos_humanas = c(13301100, 13301200,31301200, 13317100, 13305210,71305210, 13306100, 13306200, 13316110, 21316110, 21316210, 13316210,13309110, 21309110, 13309210, 21309210, 13310214, 13310115, 13310116, 21310116, 13310110, 21310110, 13310210, 21310210, 13345110, 13311150, 13311110, 21312110, 21312210, 13312110, 13312210, 12208200, 31340100)
+dados_primeiro_periodo_humanas <- dados_primeiro_periodo %>% 
+  filter(Cod_Curso %in% cursos_humanas)                                                                
+```
+
+``` {r eval = TRUE, echo =TRUE, fig.width=7, fig.height=6}
+plot_ly(data = dados_primeiro_periodo_humanas, x = as.character(dados_primeiro_periodo_humanas$Periodo), y = dados_primeiro_periodo_humanas$Media_Curso, symbol = dados_primeiro_periodo_humanas$Periodo_Ano, color = dados_primeiro_periodo_humanas$Nome_Curso, type = "scatter", legendgroup =~dados_primeiro_periodo_humanas$Nome_Curso )
+```
+
+``` {r plot_biologicas, eval = TRUE, echo = TRUE}
+# plot biologicas
+cursos_biologicas = c(41201110, 51201110, 21201110, 41201210, 51201210, 12204100, 21204100, 51204100, 12205100, 21205100, 41410100, 51206100, 41207100)
+dados_primeiro_periodo_biologicas <- dados_primeiro_periodo %>% 
+  filter(Cod_Curso %in% cursos_biologicas)        
+```
+
+``` {r eval = TRUE, echo =TRUE, fig.width=7, fig.height=6}
+plot_ly(data = dados_primeiro_periodo_biologicas, x = as.character(dados_primeiro_periodo_biologicas$Periodo), y = dados_primeiro_periodo_biologicas$Media_Curso, symbol = dados_primeiro_periodo_biologicas$Periodo_Ano, color = dados_primeiro_periodo_biologicas$Nome_Curso, type = "scatter", legendgroup =~dados_primeiro_periodo_biologicas$Nome_Curso )
+```
+
+```{r, eval = TRUE, echo=TRUE}
+
+dados_primeiro_periodo_exatas <- dados_primeiro_periodo %>% 
+  filter(Cod_Curso %nin% cursos_biologicas & Cod_Curso %nin% cursos_humanas)
+```
+
+``` {r eval = TRUE, echo =TRUE, fig.width=10, fig.height=6}
+# plot exatas
+plot_ly(data = dados_primeiro_periodo_exatas, x = as.character(dados_primeiro_periodo_exatas$Periodo), y = dados_primeiro_periodo_exatas$Media_Curso, symbol = dados_primeiro_periodo_exatas$Periodo_Ano, color = dados_primeiro_periodo_exatas$Nome_Curso, type = "scatter", legendgroup =~dados_primeiro_periodo_exatas$Nome_Curso )
+```
+
+Há, de fato, diferença estatítica entre o redimento dos alunos do primeiro do ano e do segundo. 
