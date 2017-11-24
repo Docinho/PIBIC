@@ -4,7 +4,7 @@ library(GGally)
 library(ggplot2)
 library(reshape2)
 library(caret)
-library(fnn)
+library(FNN)
 
 ## preparando os dados
 setwd("Área de Trabalho")
@@ -145,7 +145,10 @@ head(quarto_periodo)
 periodos_dados <- merge(primeiro_segundo_periodos, terceiro_periodo)
 periodos_dados <- merge(periodos_dados, quarto_periodo)
 head(periodos_dados)
-periodos_dados$oac
+
+newdatacor = cor(periodos_dados[2:28])
+corrplot(newdatacor, method = "square")
+
 lm.periodos <- lm(oac~ ., data = periodos_dados %>% select(-matricula))
 summary(lm.periodos)
 
@@ -176,6 +179,9 @@ head(df_tentativa1)
 # tirar classica aumenta muito o p-value
 lm_tentativa1 <- lm(cra~., data = df_tentativa1 %>% select(-matricula))
 summary(lm.tentativa1)
+df_tentativa1
+newdatacor = cor(df_tentativa1[1:20])
+corrplot(newdatacor, method = "number")
 
 resultado_tentativa1 <- data.frame(pred = predict(lm_tentativa1, df_tentativa1 %>% select(-matricula) %>% select(-cra)), obs = df_tentativa1$cra)
 resultado_tentativa1$modelo <- "Tentativa1"
@@ -186,10 +192,10 @@ ggplot(resultado_tentativa1, aes(x = pred, y = obs)) + geom_point(alpha = 0.5, p
 round(defaultSummary(resultado_tentativa1))
 
 
-train <- periodos_dados[1:16]
-test <- periodos_dados[17:21]
-cl <- factor(c(rep("s",25), rep("c",25), rep("v",25)))
+train <- periodos_dados[1:10]
+test <- periodos_dados[11:20]
+cl <- factor(c(rep("s",19), rep("c",19), rep("v",20)))
 cl
-knn(train, test, cl, k = 20, prob=TRUE)
+knn(train, test, cl, k = 3, prob=TRUE)
 attributes(.Last.value)
 
