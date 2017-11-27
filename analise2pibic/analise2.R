@@ -5,6 +5,7 @@ library(ggplot2)
 library(reshape2)
 library(caret)
 library(FNN)
+library(mlbench)
 
 ## preparando os dados
 setwd("Área de Trabalho")
@@ -101,7 +102,7 @@ colnames(df_tentativa1) <- c("calculo1","calculo2", "vetorial", "p1", "p2", "gra
 head(df_tentativa1)
 # tirar classica aumenta muito o p-value
 lm_tentativa1 <- lm(cra~., data = df_tentativa1 %>% select(-matricula))
-summary(lm.tentativa1)
+summary(lm_tentativa1)
 
 resultado_tentativa1 <- data.frame(pred = predict(lm_tentativa1, df_tentativa1 %>% select(-matricula) %>% select(-cra)), obs = df_tentativa1$cra)
 resultado_tentativa1$modelo <- "Tentativa1"
@@ -142,10 +143,40 @@ quarto_periodo <- alunos_max_media %>% select(Matricula, cra, PARADIGMAS.DE.LING
          loac = LAB.DE.ORG.E.ARQUITETURA.DE.COMPUTADORES, logica = LÓGICA.MATEMÁTICA, es = ENGENHARIA.DE.SOFTWARE.I, si1 = SISTEMAS.DE.INFORMAÇÃO.I)
 head(quarto_periodo)
 
+## Calculando as cadeiras mais importantes do primeiro ao quarto periodo
+periodos_dados <- periodos_dados %>% select(-matricula)
+# cadeiras_pri_qua <- cadeiras_pri_qua %>% select(-oac)
+oac <- periodos_dados %>% select(oac)
+# calculando as features mais importantes
+set.seed(7)
+matriz_correlacao_qua <- cadeiras_pri_qua %>% cor()
+head(matriz_correlacao_qua)
+cadeiras_correlatas_qua <- matriz_correlacao_qua %>% findCorrelation(cutoff=0.5)
+# indices de atributos autamente correatos
+cadeiras_correlatas_qua
+
+# descobrir as features mais importantes
+controle <- trainControl(method = "repeatedcv", number = 10, repeats = 3)
+modelo_qua <- train(oac~., data = primeiro_segundo_periodos, method ="knn", preProcess = "scale", trControl = controle)
+modelo
+importancia <- varImp(model, scale = F)
+plot(importancia)
+
+#confirma a necessidade de todas as cadeiras para ter um baixo RMSE
+controle1 <- rfeControl(functions=rfFuncs, method = "cv", number = 10)
+resultados <- rfe(cadeiras_pri_seg, cra, sizes = c(2:13), rfeControl = controle1)
+print(resultados)
+predictors(resultados)
+plot(resultados, type=c("g", "o"))
+#FONTE: https://machinelearningmastery.com/feature-selection-with-the-caret-r-package/
+
+
+# Primeiro, segundo e terceiro periodo
 periodos_dados <- merge(primeiro_segundo_periodos, terceiro_periodo)
-periodos_dados <- merge(periodos_dados, quarto_periodo)
+periodos_dados <- merge(periodos_dados, quarto_periodo) %>% select(matricula, everything())
 head(periodos_dados)
 
+# grafico de correlaçao -> pouco eficiente
 newdatacor = cor(periodos_dados[2:28])
 corrplot(newdatacor, method = "square")
 
@@ -156,12 +187,40 @@ resultado_tentativa <- data.frame(pred = predict(lm.periodos, periodos_dados %>%
 plot(periodos_dados %>% select(-matricula), pch=16, col="blue")
 resultado_tentativa1$modelo <- "Tentativa1"
 head(resultado_tentativa1)
-ggplot(resultado_tentativa, aes(x = pred, y = obs)) + geom_point(alpha = 0.5, position = position_jitter(width = 0.2)) 
-  # facet_grid(. ~modelo) +
-  # geom_abline(color = "red")
-round(defaultSummary(resultado_tentativa))
+ ggplot(resultado_tentativa, aes(x = pred, y = obs)) + geom_point(alpha = 0.5, position = position_jitter(width = 0.2)) #+
+#    facet_grid(. ~modelo) +
+#    geom_abline(color = "red")
+#RMSE e MAE altos
+ round(defaultSummary(resultado_tentativa))
 
-
+ ## Calculando as cadeiras mais importantes e a quantidade ideal de features a serem usadas
+ cadeiras_pri_qua_periodos <- periodos_dados %>% select(-matricula)
+ cra <- cadeiras_pri_qua_periodos %>% select(oac)
+ # calculando as features mais importantes
+ set.seed(7)
+ matriz_correlacao <- cadeiras_pri_qua_periodos %>% cor()
+ head(matriz_correlacao)
+ cadeiras_correlatas <- matriz_correlacao %>% findCorrelation(cutoff=0.5)
+ # indices de atributos autamente correatos
+ cadeiras_correlatas
+ cadeiras_reduzidas <- cadeiras_pri_qua_periodos %>% select(-cra, -discreta, -prob, -p2, -calculo1, -leda, -grafos, -ic, -lp1)
+ names(cadeiras_pri_qua_periodos)
+ # descobrir as features mais importantes
+ controle <- trainControl(method = "repeatedcv", number = 10, repeats = 3)
+ modelo <- train(oac~., data = cadeiras_pri_qua_periodos,method ="knn", preProcess = c("center","scale"), trControl = controle, tuneLength = 20)
+ modelo
+ modelo <- train(oac~., data = cadeiras_reduzidas,method ="knn", preProcess = c("center","scale"), trControl = controle, tuneLength = 20)
+ modelo
+ #diminuir a quantidade de cadeiras diminuiu o erro de tornou o k = 7 (ao invés de 13)a melhor escolha
+ importancia <- varImp(model, scale = F)
+ plot(importancia)
+ 
+ #confirma a necessidade de todas as cadeiras para ter um baixo RMSE
+ controle1 <- rfeControl(functions=rfFuncs, method = "cv", number = 10)
+ resultados <- rfe(cadeiras_pri_seg, cra, sizes = c(2:13), rfeControl = controle1)
+ print(resultados)
+ predictors(resultados)
+ plot(resultados, type=c("g", "o"))
 
 notas.p1.p2 = data.frame(calculo1 = 8.3, vetorial = 10, lpt = 9.2, p1 = 10, ic=9.9, lp1 =10, calculo2 = 9.8, discreta = 10, p2 = 9.8, grafos = 10, classica = 9.7, lp2 = 9.7)
 notas.tentativa3 = data.frame(calculo1 = 8.3, vetorial = 10, lpt = 9.2, lp1 = 10, discreta = 10, grafos = 10, p2 = 9.8)
