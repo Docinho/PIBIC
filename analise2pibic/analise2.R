@@ -4,7 +4,9 @@ library(GGally)
 library(ggplot2)
 library(reshape2)
 library(caret)
+library(hydroGOF)
 library(mlbench)
+library(ontologySimilarity)
 
 ## preparando os dados
 setwd("Área de Trabalho")
@@ -213,7 +215,6 @@ round(defaultSummary(resultado_tentativa1))
 
 cadeiras_pri_qua_periodos <- periodos_dados %>% select(-matricula)
 # calculando as features mais importantes
-set.seed(7)
 matriz_correlacao <- cadeiras_pri_qua_periodos %>% cor()
 head(matriz_correlacao)
 cadeiras_correlatas <- matriz_correlacao %>% findCorrelation(cutoff=0.5)
@@ -242,58 +243,129 @@ predictors(resultado_oac)
 plot(resultado_oac, type=c("g", "o"))
 
 cadeiras_necessarias_oac <- cadeiras_pri_qua_periodos %>% select(oac, logica, metodos, loac, linear,si1, vetorial, lpt, es, lp2, gi, calculo2, tc, eda, p1, classica)
-# 
-# ## para si1
-# si1_notas <- cadeiras_pri_qua_periodos %>% select(si1)
-# cadeiras_reduzidas_sem_si1 <- cadeiras_pri_qua_periodos %>% select(-si1)
-# 
-# # descobrir as features mais importantes
-# modelo_si1 <- train(si1~., data = cadeiras_reduzidas,method ="knn", preProcess = c("center","scale"), trControl = controle, tuneLength = 20)
-# modelo_si1
-# modelo_si1 <- train(si1~., data = cadeiras_pri_qua_periodos,method ="knn", preProcess = c("center","scale"), trControl = controle, tuneLength = 20)
-# modelo_si1
-# #diminuira quantidade de cadeiras aumentou o erro logo o melhor eh k = 5(RMSE = 0.73) (ao invés de 7)
-# importancia_si1 <- varImp(modelo_si1, scale = F)
-# importancia_si1
-# plot(importancia_si1)
-# 
-# resultado_si1 <- rfe(cadeiras_pri_qua_periodos, as.vector(unlist(si1_notas)), sizes = c(1:14), rfeControl = controle1)
-# print(resultado_si1)
-# predictors(resultado_si1)
-# plot(resultado_si1, type=c("g", "o"))
-# 
-# cadeiras_necessarias_si1 <- c("cra","gi","loac","linear","logica","leda")
-# 
-# 
-# ## para prob
-# 
-# prob_notas <- cadeiras_pri_qua_periodos %>% select(prob)
-# cadeiras_reduzidas_sem_prob <- cadeiras_pri_qua_periodos %>% select(-prob)
-# 
-# # descobrir as features mais importantes
-# modelo_prob <- train(prob~., data = cadeiras_pri_qua_periodos,method ="knn", preProcess = c("center","scale"), trControl = controle, tuneLength = 20)
-# modelo_prob
-# modelo_prob <- train(prob~., data = cadeiras_reduzidas,method ="knn", preProcess = c("center","scale"), trControl = controle, tuneLength = 20)
-# modelo_prob
-# #diminuir a quantidade de cadeiras nao fez diferença (RMSE = 0,81 k = 7)
-# importancia_prob <- varImp(modelo_prob, scale = F)
-# importancia_prob
-# plot(importancia_prob)
-# 
-# resultado_prob <- rfe(cadeiras_reduzidas_sem_prob, as.vector(unlist(prob_notas)), sizes = c(1:14), rfeControl = controle1)
-# print(resultado_prob)
-# predictors(resultado_prob)
-# plot(resultado_prob, type=c("g", "o"))
-# 
-# cadeiras_necessarias_prob <- predictors(resultado_prob)
+
+## para si1
+si1_notas <- cadeiras_pri_qua_periodos %>% select(si1)
+cadeiras_reduzidas_sem_si1 <- cadeiras_pri_qua_periodos %>% select(-si1)
+
+# descobrir as features mais importantes
+modelo_si1 <- train(si1~., data = cadeiras_reduzidas,method ="knn", preProcess = c("center","scale"), trControl = controle, tuneLength = 20)
+modelo_si1
+modelo_si1 <- train(si1~., data = cadeiras_pri_qua_periodos,method ="knn", preProcess = c("center","scale"), trControl = controle, tuneLength = 20)
+modelo_si1
+#diminuira quantidade de cadeiras aumentou o erro logo o melhor eh k = 5(RMSE = 0.73) (ao invés de 7)
+importancia_si1 <- varImp(modelo_si1, scale = F)
+importancia_si1
+plot(importancia_si1)
+
+resultado_si1 <- rfe(cadeiras_pri_qua_periodos, as.vector(unlist(si1_notas)), sizes = c(1:14), rfeControl = controle1)
+print(resultado_si1)
+predictors(resultado_si1)
+plot(resultado_si1, type=c("g", "o"))
+
+cadeiras_necessarias_si1 <- c("cra","gi","loac","linear","logica","leda")
+
+
+## para prob
+
+prob_notas <- cadeiras_pri_qua_periodos %>% select(prob)
+cadeiras_reduzidas_sem_prob <- cadeiras_pri_qua_periodos %>% select(-prob)
+
+# descobrir as features mais importantes
+modelo_prob <- train(prob~., data = cadeiras_pri_qua_periodos,method ="knn", preProcess = c("center","scale"), trControl = controle, tuneLength = 20)
+modelo_prob
+modelo_prob <- train(prob~., data = cadeiras_reduzidas,method ="knn", preProcess = c("center","scale"), trControl = controle, tuneLength = 20)
+modelo_prob
+#diminuir a quantidade de cadeiras nao fez diferença (RMSE = 0,81 k = 7)
+importancia_prob <- varImp(modelo_prob, scale = F)
+importancia_prob
+plot(importancia_prob)
+
+resultado_prob <- rfe(cadeiras_reduzidas_sem_prob, as.vector(unlist(prob_notas)), sizes = c(1:14), rfeControl = controle1)
+print(resultado_prob)
+predictors(resultado_prob)
+plot(resultado_prob, type=c("g", "o"))
+
+cadeiras_necessarias_prob <- predictors(resultado_prob)
 
 ## Linear Regression
-lm_oac <- lm(oac~., data = cadeiras_necessarias_oac)
-resultado_lm_oac <- data.frame(pred = predict(lm_oac, cadeiras_necessarias_oac %>% select(-oac)), obs = cadeiras_necessarias_oac$oac)
-head(resultado_lm_oac)
-ggplot(resultado_lm_oac, aes(x = pred, y = obs)) + geom_point(alpha = 0.5, position = position_jitter(width = 0.2)) +
-  geom_abline(color = "red")
-round(defaultSummary(resultado_tentativa1))
+# lm_oac <- lm(oac~., data = cadeiras_necessarias_oac)
+# resultado_lm_oac <- data.frame(pred = predict(lm_oac, cadeiras_necessarias_oac %>% select(-oac)), obs = cadeiras_necessarias_oac$oac)
+# head(resultado_lm_oac)
+# ggplot(resultado_lm_oac, aes(x = pred, y = obs)) + geom_point(alpha = 0.5, position = position_jitter(width = 0.2)) +
+#   geom_abline(color = "red")
+# round(defaultSummary(resultado_tentativa1))
+
+# retorna um vector de Named num, cujo nome é a matrícula e o valor a similaridade
+get_neigh <- function(df, index, corr) {
+  
+  matr <- as.character(df[index, 1])
+  
+  # todos os vizinhos, porém temos que "invalidar" ele mesmo
+  corr[matr, matr] = 0
+  all_neigh <- corr[matr, ]
+  
+  k_neigh <- sort(all_neigh, decreasing = T)[1:K]
+  
+  return(k_neigh);
+}
+
+# calcula score ignorando vizinhos com NAs
+get_score <- function(df, k_neigh, item) {
+  
+  notas <- subset(df, matricula %in% names(k_neigh))
+  
+  # removendo vizinhos que não possuem notas
+  notas <- na.omit(notas) 
+  
+  # se todas as notas dos vizinhos forem NAs ou nenhum vizinho com
+  # nota tenha similaridade > NEIGH consideramos que esse aluno
+  # não tem vizinhos
+  if(nrow(notas) == 0) {
+    return(NA)
+  }
+  
+  # atualizando similaridade
+  notas$sim <- 0
+  for(i in 1:length(notas$matricula)) {
+    notas$sim[i] <- k_neigh[as.character(notas$matricula[i])] 
+  }
+  
+  # se todas as notas dos vizinhos forem NAs ou nenhum vizinho com
+  # nota tenha similaridade > NEIGH consideramos que esse aluno
+  # não tem vizinhos
+  eh_valido <- notas[notas$sim > NEIGH,]
+  if(nrow(eh_valido) == 0) {
+    return(NA)
+  }
+  
+  # print(item)
+  # print(notas[, item])
+  # print(sum(notas[, item] * notas$sim) / sum(notas$sim))
+  
+  res <- sum(notas[, item] * notas$sim) / sum(notas$sim)
+  return(res)
+}
+
+# calcula a similaridade entre todos os alunos (de todos para todos) 
+corr <- cadeiras_pri_qua_periodos %>% get_sim()
+head(corr)
+teste_indices <- rownames(cadeiras_pri_qua_periodos[2:9])
+head(quarto_periodo)
+teste_valores <- cadeiras_pri_qua_periodos %>% mutate(pred = NA)
+# calcula predição: média ponderada dos K vizinhos mais próximos
+for(i in 1:length(teste_indices)) {
+  
+  index <- teste_indices[i]
+  k_proximos <- get_neigh(cadeiras_pri_qua_periodos, index, corr)
+  
+  for(j in 1:length(quarto_periodo[,3:9])) {
+    pred <- get_score(cadeiras_pri_qua_periodos[, c("matricula", cadeiras_pri_qua_periodos[,j])],
+                      k_proximos, cadeiras_pri_qua_periodos[,j])
+    teste_valores[index, pred[j]] <- pred
+  }
+}
+
 
 predict(lm_oac, periodos_dados %>% rowwise())
 predict(lm_oac, notas.p1.p2)
