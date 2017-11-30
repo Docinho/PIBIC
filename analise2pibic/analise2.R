@@ -4,9 +4,7 @@ library(GGally)
 library(ggplot2)
 library(reshape2)
 library(caret)
-library(hydroGOF)
 library(mlbench)
-library(ontologySimilarity)
 
 ## preparando os dados
 setwd("Área de Trabalho")
@@ -168,7 +166,7 @@ set.seed(7)
 ## Calculando as cadeiras mais importantes 
 
 # calculando as features mais importantes
-matriz_correlacao <- cadeiras_pri_seg_periodos %>% cor()
+matriz_correlacao <- periodos_dados %>% cor()
 head(matriz_correlacao)
 cadeiras_correlatas <- matriz_correlacao %>% findCorrelation(cutoff=0.5)
 # indices de atributos autamente correatos
@@ -296,18 +294,34 @@ cadeiras_necessarias_prob <- predictors(resultado_prob)
 #   geom_abline(color = "red")
 # round(defaultSummary(resultado_tentativa1))
 
+
+## /// FUNCOES E CONSTANTES \\\##
+K= 10
+NEIGH = 0.7
+
+get_sim <- function(df) {
+  
+  row.names(df) <- df$matricula
+  df <- df %>% subset(select=-c(matricula))
+  
+  inv_df <- as.data.frame(t(df))
+  
+  res <- cor(inv_df[sapply(inv_df, is.numeric)], use="p", method='pearson')
+  return(res);
+}
+
 # retorna um vector de Named num, cujo nome é a matrícula e o valor a similaridade
 get_neigh <- function(df, index, corr) {
   
-  matr <- as.character(df[index, 1])
+  matr <- (df[index, 1])
   
   # todos os vizinhos, porém temos que "invalidar" ele mesmo
-  corr[matr, matr] = 0
-  all_neigh <- corr[matr, ]
-  
-  k_neigh <- sort(all_neigh, decreasing = T)[1:K]
-  
-  return(k_neigh);
+  corr[as.double(matr), as.double(matr)] = 0
+  # all_neigh <- corr[matr, ]
+  # 
+  # k_neigh <- sort(all_neigh, decreasing = T)[1:K]
+  # 
+  # return(k_neigh);
 }
 
 # calcula score ignorando vizinhos com NAs
@@ -347,30 +361,42 @@ get_score <- function(df, k_neigh, item) {
   return(res)
 }
 
+## // cONSTURINDO OS DATA FRAMES E COLLABORATIVE FILTERING \\##
+
 # calcula a similaridade entre todos os alunos (de todos para todos) 
-corr <- cadeiras_pri_qua_periodos %>% get_sim()
+
+nomes_cadeiras_pri_a_ter_periodo <- colnames(cadeiras_pri_qua_periodos %>% select(-plp, -metodos, -oac, -loac, -logica, -es, -si1))
+nomes_cadeiras_quarto_periodo <-colnames(quarto_periodo %>% select(-matricula, -cra))
+# teste_indices <- rownames(periodos_dados)
+teste_indices <- c(1:length(rownames(periodos_dados)))
+teste_valores <- cadeiras_pri_qua_periodos %>% mutate(plp = NA, oac = NA, loac = NA, logica = NA,si1 = NA, es = NA, metodos = NA)
+corr <- teste_valores %>% cor()
 head(corr)
-teste_indices <- rownames(cadeiras_pri_qua_periodos[2:9])
-head(quarto_periodo)
-teste_valores <- cadeiras_pri_qua_periodos %>% mutate(pred = NA)
+
+# deve ficar mais em cima
+teste_valores <- teste_valores %>% cbind(teste_indices) %>% rename(indice_matricula = teste_indices) %>% select(indice_matricula, everything())
+head(teste_valores)
+teste_indices
 # calcula predição: média ponderada dos K vizinhos mais próximos
 for(i in 1:length(teste_indices)) {
   
-  index <- teste_indices[i]
-  k_proximos <- get_neigh(cadeiras_pri_qua_periodos, index, corr)
+  index <- as.double(teste_indices[i])
+  k_proximos <- get_neigh(teste_valores, index, corr)
   
-  for(j in 1:length(quarto_periodo[,3:9])) {
-    pred <- get_score(cadeiras_pri_qua_periodos[, c("matricula", cadeiras_pri_qua_periodos[,j])],
-                      k_proximos, cadeiras_pri_qua_periodos[,j])
-    teste_valores[index, pred[j]] <- pred
-  }
+  # for(j in 1:length(nomes_cadeiras_quarto_periodo)) {
+  #   pred <- get_score(teste_valores[, c("matricula", nomes_cadeiras_quarto_periodos[j])],
+  #                     k_proximos, nomes_cadeiras_quarto_periodos[j])
+  #   teste_valores[index,nomes_cadeiras_quarto_periodos[j]] <- pred
+  # }
 }
-
+length(teste)
 
 predict(lm_oac, periodos_dados %>% rowwise())
 predict(lm_oac, notas.p1.p2)
 notas.p1.p2 = data.frame(calculo1 = 8.3, vetorial = 10, lpt = 9.2, p1 = 10, ic=9.9, lp1 =10, calculo2 = 9.8, discreta = 10, p2 = 9.8, grafos = 10, classica = 9.7, lp2 = 9.7)
 notas.tentativa3 = data.frame(calculo1 = 8.3, vetorial = 10, lpt = 9.2, lp1 = 10, discreta = 10, grafos = 10, p2 = 9.8)
 predict(lm.periodos, notas.p1.p2)
+
+corr
 
 
