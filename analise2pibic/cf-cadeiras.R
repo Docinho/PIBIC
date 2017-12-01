@@ -5,7 +5,6 @@ library(ggplot2)
 library(reshape2)
 library(caret)
 library(mlbench)
-library(stringr)
 library(hydroGOF)
 
 setwd("Área de Trabalho")
@@ -107,7 +106,7 @@ get_score <- function(df, k_neigh, item) {
   
   # removendo vizinhos que não possuem notas
   notas <- na.omit(notas) 
-  
+
   # se todas as notas dos vizinhos forem NAs ou nenhum vizinho com
   # nota tenha similaridade > NEIGH consideramos que esse aluno
   # não tem vizinhos
@@ -152,7 +151,7 @@ for(i in 1:length(COL_QUARTO_PER)) {
  # atribuindo valores numeros as matriculas
 
 teste <- teste %>% bind_cols(matricula_2 = c(1:121)) %>% select(-matricula) %>% select(matricula_2, everything()) %>% rename(matricula = matricula_2)
-teste
+head(teste)
 # copiando
 teste_valores <- teste[-temp, ]
 teste_indices <- rownames(teste_valores)
@@ -162,9 +161,8 @@ teste_indices
 
 # calcula a similaridade entre todos os alunos (de todos para todos) 
 corr <- teste %>% get_sim()
-corr
-## Warning in cor(inv_df[sapply(inv_df, is.numeric)], use = "p", method =
-## "pearson"): the standard deviation is zero
+head(corr)
+
 
 # calcula predição: média ponderada dos K vizinhos mais próximos
 for(i in 1:length(teste_indices)) {
@@ -184,9 +182,10 @@ dados_reais <- periodos_dados[-temp, COL_QUARTO_PER]
 predicao <- teste_valores[, COL_QUARTO_PER]
 
 
-# número de elementos em cada coluna de teste = 56
+# número de elementos em cada coluna de teste = 5
 total_alunos <- sapply(predicao, function(x) length(x))
 
+#foi prossivel predizer para todos os alunos
 # número de NA em cada coluna, ou seja número de alunos sem predição por disciplina
 sem_predicao <- sapply(predicao, function(x) sum(is.na(x)))
 
@@ -196,6 +195,52 @@ sem_predicao <- sapply(predicao, function(x) sum(is.na(x)))
 # porcentagem total de variáveis sem predição
 (sum(sem_predicao)/sum(total_alunos)) * 100
 
+# os 5 alunos que aparecem nas cadeiras do quarto periodo com NA são os ultilizados no teste
 sapply(teste, function(x) sum(is.na(x)))
 
 rmse(sim=predicao, obs=dados_reais)
+
+
+## // PREDIZENDO NOTA PARA TODOS OS ALUNOS \\
+
+teste2 <- periodos_dados %>% bind_cols(matricula_2 = c(1:121)) %>% select(-matricula) %>% select(matricula_2, everything()) %>% rename(matricula = matricula_2)
+teste_valores2 <- periodos_dados %>% mutate(plp = NA, si1 = NA, logica = NA, oac = NA, loac = NA, es = NA, metodos = NA)
+# teste para todos os alunos
+teste_indices2 <- rownames(teste2)
+
+## Realizando predição
+
+# calcula predição: média ponderada dos K vizinhos mais próximos
+for(i in 1:length(teste_indices2)) {
+  
+  index <- teste_indices2[i]
+  k_proximos <- get_neigh(teste2, index, corr)
+  
+  for(j in 1:length(COL_QUARTO_PER)) {
+    pred <- get_score(teste2[, c("matricula", COL_QUARTO_PER[j])],
+                      k_proximos, COL_QUARTO_PER[j])
+    teste_valores2[index, COL_QUARTO_PER[j]] <- pred
+  }
+}
+
+# simplificando os dados
+dados_reais2 <- periodos_dados[, COL_QUARTO_PER]
+predicao2 <- teste_valores2[, COL_QUARTO_PER]
+head(dados_reais2)
+head(predicao2)
+erro_rmse <- matrix(nrow = nrow(periodos_dados), ncol = length(COL_QUARTO_PER))
+colnames(erro_rmse) <- COL_QUARTO_PER
+erro_rmse
+rownames(erro_rmse) <-(periodos_dados$matricula)
+for(i in 1:length(teste_indices2)){
+  for(j in 1:7) {
+  erro_rmse[i,j] <- (rmse(sim=predicao2[i,j], obs=dados_reais2[i,j]))
+  }
+}
+
+matriculas <- periodos_dados %>% select(matricula)
+matriculas
+erro_rmse <- as.data.frame(erro_rmse) %>% mutate(media_rmse = rowMeans(as.data.frame(erro_rmse)[,1:7])) 
+erro_rmse <-bind_cols(as.data.frame(erro_rmse),matriculas) %>% select(matricula, everything()) 
+head(erro_rmse)
+
