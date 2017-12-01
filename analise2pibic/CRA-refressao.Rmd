@@ -15,16 +15,21 @@ library(caret)
 library(mlbench)
 ```
 
-## R Markdown
+```{r eval=F, include=T}
+library(dplyr)
+library(corrplot)
+library(GGally)
+library(ggplot2)
+library(reshape2)
+library(caret)
+library(mlbench)
+```
 
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
-
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
-
-```{r cars}
+## Tratando os dados
+Foram usados os dados dos alunos graduados da UFCG de Ciência da Computação. Foi calculado o CRA e separado as notas dos alunos por período.
+```{r dados, warning=FALSE}
 
 ## preparando os dados
-setwd("Área de Trabalho")
 dados_alunos <- read.csv("alunosUFCGAnon.csv") 
 dados_aluno_cc <- dados_alunos %>% filter(Cod_Curso == 14102100 & Cod_Evasao == 0 & Tipo == "Obrigatória")
 dados_aluno_cc <- dados_aluno_cc %>% mutate(Matricula = factor(Matricula)) %>% arrange(Matricula) %>% 
@@ -83,18 +88,13 @@ head(primeiro_segundo_periodos)
 periodos_dados <- merge(primeiro_segundo_periodos, terceiro_periodo)
 periodos_dados <- merge(periodos_dados, quarto_periodo) %>% select(matricula, everything())
 head(periodos_dados)
-
-
 ```
 
-## Including Plots
-
-You can also embed plots, for example:
+## Ajustado os dados
+Foram usados os dados do primeiro e segundo período separadamente e, depois, simultaneamente para uma regressão linear. E foi constatado que para uma matriz completa o resultado foi menos eficiente.
 
 ```{r pressure, echo=FALSE}
 
-
-## Pergunta principal
 
 lm.p1 <- lm(cra~ ., data = primeiro_periodo %>% select(-matricula))
 summary(lm.p1)
@@ -228,11 +228,8 @@ resultado_tentativa1 <- data.frame(pred = predict(lm.periodos, periodos_dados %>
 plot(periodos_dados %>% select(-matricula), pch=16, col="blue")
 resultado_tentativa1$modelo <- "Tentativa1"
 head(resultado_tentativa1)
-ggplot(resultado_tentativa, aes(x = pred, y = obs)) + geom_point(alpha = 0.5, position = position_jitter(width = 0.2)) #+
-#    facet_grid(. ~modelo) +
-#    geom_abline(color = "red")
+ggplot(resultado_tentativa, aes(x = pred, y = obs)) + geom_point(alpha = 0.5, position = position_jitter(width = 0.2)) 
 #RMSE e MAE altos
 round(defaultSummary(resultado_tentativa1))
 ```
 
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
