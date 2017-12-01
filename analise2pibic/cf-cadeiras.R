@@ -230,17 +230,16 @@ head(dados_reais2)
 head(predicao2)
 erro_rmse <- matrix(nrow = nrow(periodos_dados), ncol = length(COL_QUARTO_PER))
 colnames(erro_rmse) <- COL_QUARTO_PER
-erro_rmse
 rownames(erro_rmse) <-(periodos_dados$matricula)
 for(i in 1:length(teste_indices2)){
   for(j in 1:7) {
   erro_rmse[i,j] <- (rmse(sim=predicao2[i,j], obs=dados_reais2[i,j]))
   }
 }
-
 matriculas <- periodos_dados %>% select(matricula)
-matriculas
 erro_rmse <- as.data.frame(erro_rmse) %>% mutate(media_rmse = rowMeans(as.data.frame(erro_rmse)[,1:7])) 
 erro_rmse <-bind_cols(as.data.frame(erro_rmse),matriculas) %>% select(matricula, everything()) 
 head(erro_rmse)
 
+periodos_dados %>% filter(matricula == "B818") %>% select(plp:si1)
+predicao2[110, ]%>% select(plp:si1)
