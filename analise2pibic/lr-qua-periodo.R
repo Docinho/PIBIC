@@ -5,7 +5,7 @@ library(ggplot2)
 library(reshape2)
 library(caret)
 library(mlbench)
-library(hydroGOF)
+library(grid)
 
 setwd("Área de Trabalho")
 dados_alunos <- read.csv("alunosUFCGAnon.csv") 
@@ -157,6 +157,16 @@ modelo_si1 <- lm(si1 ~ cra + p2 + leda + linear + gi + oac + prob + es + loac + 
 summary(modelo_si1)
 plot(modelo_si1, which = 1:2)
 
+# plp
+analise_plp <- corr_cadeiras %>% select(plp) 
+ranking_plp <- cbind(analise_plp, as.data.frame(rownames(analise_plp))) 
+ranking_plp <- top_n(ranking_plp, 11, plp) %>% rename(cadeiras = "rownames(analise_plp)")
+ranking_plp %>% select(cadeiras)
+
+modelo_plp <- lm(si1 ~ cra + ic + discreta + eda + leda + prob + tc + metodos + es + logica, data = teste)
+summary(modelo_plp)
+plot(modelo_plp, which = 1:2)
+
 # predição
 RMSE <- function(predicted, true) mean((predicted-true)^2)^.5
 
@@ -165,7 +175,6 @@ teste_oac <- resultados_geral %>% select(-matricula, -Periodo_Ingresso, -calculo
 teste_oac
 resultados$oac
 predict(modelo_oac, teste_oac)
-
 RMSE(predict(modelo_oac, teste_oac), resultados$oac)
 
 #loac
@@ -181,7 +190,6 @@ RMSE(predict(modelo_loac, teste_loac), resultados$loac)
 ranking_metodos$cadeiras
 atributos_desnecessarios <- setdiff(colnames(resultados_geral), ranking_metodos$cadeiras)
 atributos_desnecessarios
-resultados_geral
 teste_metodos <- resultados_geral%>% select(-matricula,-calculo1,-vetorial,-p1, -lp1,-Periodo_Ingresso, -calculo2,-classica,-discreta,-lp2, -eda, -leda, -moderna,-tc,-gi,-si1, -metodos)
 teste_metodos
 modelo_metodos
@@ -221,8 +229,76 @@ predict(modelo_es, teste_es)
 resultados_geral$es
 RMSE(predict(modelo_es, teste_es), resultados$es)
 
+#si1
+ranking_si1$cadeiras
+atributos_desnecessarios <- setdiff(colnames(resultados_geral), ranking_si1$cadeiras)
+atributos_desnecessarios
+resultados_geral
+teste_si1 <- resultados_geral%>% select(-matricula,-calculo1,-vetorial,-p1, -lp1, -Periodo_Ingresso, -ic, -lpt, -calculo2,-grafos, -classica, -discreta, -lp2,-moderna, -eda, -tc, -metodos)
+teste_si1
+predict(modelo_si1, teste_si1)
+resultados_geral$si1
+RMSE(predict(modelo_si1, teste_si1), resultados$si1)
+
 #plot comparando rmse 
 
 rmse_regressao <- c(RMSE(predict(modelo_oac, teste_oac), resultados$oac),RMSE(predict(modelo_loac, teste_loac), resultados$loac),RMSE(predict(modelo_metodos, teste_metodos), resultados$metodos), 
-                    RMSE(predict(modelo_plp, teste_plp), resultados$plp), RMSE(predict(modelo_logica, teste_logica), resultados$logica), RMSE(predict(modelo_es, teste_es), resultados$es))
-rmse_regressao
+                    RMSE(predict(modelo_plp, teste_plp), resultados$plp), RMSE(predict(modelo_logica, teste_logica), resultados$logica), RMSE(predict(modelo_es, teste_es), resultados$es), 
+                    RMSE(predict(modelo_si1, teste_si1), resultados$si1))
+rmse_regressao <- as.data.frame(rmse_regressao)
+
+colnames(rmse_regressao) <- "LinearRegression"
+
+cf<-NULL
+ColaborativeFiltering <- c(1.2445437, 2.3916986, 0.9132360, 0.9025889, 1.2459712, 0.5549775, 0.9422195)
+cf <- as.data.frame(ColaborativeFiltering)
+disciplinas <- c("oac","loac", "metodos","plp","logica", "es", "si1")
+disciplinas <- as.data.frame(disciplinas)
+
+comparando_rmse1 <- rbind(rmse_regressao, cf)
+rmse_regressao1 <- rmse_regressao %>% rename(media_rmse = LinearRegression) %>% mutate(tipo = "RegressaoLinear")
+rmse_regressao1 <- cbind(disciplinas, rmse_regressao1)
+rmse_regressao1
+cf1 <- cf %>% rename(media_rmse = ColaborativeFiltering) %>% mutate(tipo = "FiltragemColaborativa")
+cf1 <- cbind(disciplinas, cf1)
+df <- rbind(rmse_regressao1, cf1)
+df %>% ggplot(aes(disciplinas, media_rmse,color = tipo)) + geom_point( show.legend = T) #+ geom_linerange(x = disciplinas, ymin = )
+# K = 10
+# plp  metodos      oac     loac   logica       es      si1 
+# 1.480412 1.513876 1.435620 2.383640 1.292644 1.103542 1.091357 
+
+# k = 3
+# plp   metodos       oac      loac    logica        es       si1 
+# 1.2445437 2.3916986 0.9132360 0.9025889 1.2459712 0.5549775 0.9422195 
+# metodos <- c(1.2445437, 0.8934705, 2.3916986, 0.4665547, 0.9132360, 1.3701633,0.9025889,1.8269845, 1.2459712, 0.4475086,0.5549775,0.8725639, 0.9422195,0.6263398)
+# 
+# plot1 <- comparando_rmse %>%
+#   select(RegressaoLinear, disciplinas) %>%
+#   na.omit() %>%
+#   ggplot() +
+#   geom_point(aes(x = RegressaoLinear, y = disciplinas), size = 0.5, alpha = 0.75) +
+#   ylab("Disciplinas") +
+#   xlab("Regressao Linear")
+#   theme_minimal() +
+#   theme(axis.title.x = element_blank())
+# 
+# plot2 <- comparando_rmse %>%
+#   select(ColaborativeFiltering, disciplinas) %>%
+#   na.omit() %>%
+#   ggplot() +
+#   geom_point(aes(x = ColaborativeFiltering, y = disciplinas), size = 0.5, alpha = 0.75) +
+#   xlab("ColaborativeFiltering") +
+#   theme_minimal() +
+#   theme(axis.title.x = element_blank())
+# 
+# grid.newpage()
+# grid.draw(rbind(ggplotGrob(plot1), ggplotGrob(plot2), size = "last"))
+# comparando_rmse
+#   comparando_rmse %>%
+#   ggplot() +
+#   geom_point(aes(y = ColaborativeFiltering, x = disciplinas), size = 1.5, alpha = 0.75, color = "blue") +
+#   xlab("ColaborativeFiltering") +
+#   geom_point(aes(y = RegressaoLinear, x = disciplinas), size = 1.5, alpha = 0.75, color = "red", show.legend = T) +
+#   ylab("Disciplinas") +
+#   xlab("Regressao Linear")
+

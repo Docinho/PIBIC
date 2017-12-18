@@ -180,8 +180,8 @@ for(i in 1:length(teste_indices)) {
 # simplificando os dados
 dados_reais <- periodos_dados[-temp, COL_QUARTO_PER]
 predicao <- teste_valores[, COL_QUARTO_PER]
-
-
+dados_reais
+predicao
 # número de elementos em cada coluna de teste = 5
 total_alunos <- sapply(predicao, function(x) length(x))
 
@@ -201,7 +201,7 @@ sapply(teste, function(x) sum(is.na(x)))
 rmse(sim=predicao, obs=dados_reais)
 
 
-## // PREDIZENDO NOTA PARA TODOS OS ALUNOS \\
+// PREDIZENDO NOTA PARA TODOS OS ALUNOS \\
 
 teste2 <- periodos_dados %>% bind_cols(matricula_2 = c(1:121)) %>% select(-matricula) %>% select(matricula_2, everything()) %>% rename(matricula = matricula_2)
 teste_valores2 <- periodos_dados %>% mutate(plp = NA, si1 = NA, logica = NA, oac = NA, loac = NA, es = NA, metodos = NA)
@@ -231,6 +231,7 @@ head(predicao2)
 erro_rmse <- matrix(nrow = nrow(periodos_dados), ncol = length(COL_QUARTO_PER))
 colnames(erro_rmse) <- COL_QUARTO_PER
 rownames(erro_rmse) <-(periodos_dados$matricula)
+
 for(i in 1:length(teste_indices2)){
   for(j in 1:7) {
   erro_rmse[i,j] <- (rmse(sim=predicao2[i,j], obs=dados_reais2[i,j]))
