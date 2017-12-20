@@ -116,6 +116,8 @@ get_score <- function(df, k_neigh, item) {
 # separando em teste e treino
 temp <- createDataPartition(alunos_graduados$Periodo_Ingresso, p = 0.90, list = F)
 temp
+
+rmse_periodo <- as.data.frame(matrix(NA, nrow = 7))
 #### // PREDIZENDO NOTA PARA TODOS OS ALUNOS \\ ####
 
 #notas de todas as cadeiras de todos os alunos
@@ -131,7 +133,7 @@ resultados2 <- dados_treino2[-temp,]
 resultados2
 
 ## Realizando predição
-
+disciplinas_periodo = 2
 #calcula para todo as cadeiras por periodo
 for(disciplinas_periodo in 2:length(lista_periodos)){
   # cadeiras que serao usadas no calculo
@@ -141,6 +143,7 @@ for(disciplinas_periodo in 2:length(lista_periodos)){
   head(treino_valores2)
   cadeiras_atuais <- unlist(lista_periodos[disciplinas_periodo])
   
+  cadeiras_atuais
   # omitindo os valores das notas de teste
   for(l in 1:lengths(lista_periodos[disciplinas_periodo])) {
     treino_valores2[-temp,][cadeiras_atuais[l]] <- NA
@@ -156,19 +159,23 @@ for(disciplinas_periodo in 2:length(lista_periodos)){
   # teste_indices2 <- rownames(teste_valores2)
 
   for(m in 1:length(teste_indices2)) {
+    # m = 4
     index <- teste_indices2[m]
     k_proximos <- get_neigh(teste_valores2, index, corr)
-  
+  k_proximos
     for(j in 1:length(cadeiras_atuais)) {
       pred <- get_score(treino_valores2[, c("Matricula", cadeiras_atuais[j])],
                         k_proximos, cadeiras_atuais[j])
       teste_valores2[index, cadeiras_atuais[j]] <- pred
     }
+  pred
   }
 
   # simplificando os dados
   dados_reais2 <- alunos_graduados[-temp,cadeiras_atuais]
   predicao2 <- teste_valores2[, cadeiras_atuais]
+  dados_reais2
+  predicao2
   # conversão para quando dados_reais e predicao foram vetores e nao data.frames, a fim de se evitar erro no for seguinte
   if(class(predicao2) == "numeric"){
     predicao2 <- as.data.frame(predicao2)
@@ -178,7 +185,7 @@ for(disciplinas_periodo in 2:length(lista_periodos)){
     dados_reais2 <- as.data.frame(dados_reais2)
   }
 
-  erro_rmse <- as.data.frame(matrix(NA, nrow = N_ALUNOS, ncol = N_DISC))
+  erro_rmse <- as.data.frame(matrix(0, nrow = N_ALUNOS, ncol = N_DISC))
   for(aluno in 1:(N_ALUNOS)){
     for(cadeira in 1:length(cadeiras_atuais)) {
       erro_rmse[aluno,cadeira] <- (rmse(sim=predicao2[aluno,cadeira], obs=dados_reais2[aluno,cadeira]))
@@ -192,6 +199,7 @@ for(disciplinas_periodo in 2:length(lista_periodos)){
   # matriculas <- periodos_dados %>% select(matricula)
   erro_rmse <- as.data.frame(erro_rmse) %>% 
     mutate(media_rmse = rowMeans(as.data.frame(erro_rmse)[,1:7])) 
+   rmse_periodo[disciplinas_periodo,] <- mean(as.data.frame(erro_rmse %>% select(media_rmse) %>% na.omit())$media_rmse)
   predicao_geral <- rbind(predicao_geral, erro_rmse)
   predicao_geral
   erro_rmse
@@ -199,7 +207,10 @@ for(disciplinas_periodo in 2:length(lista_periodos)){
   # head(erro_rmse)
 }
 predicao_geral <- predicao_geral %>% na.omit()
-periodos_dados %>% filter(matricula == "B818") %>% select(plp:si1)
-predicao2[110, ]%>% select(plp:si1)
-
-rmse(sim=predicao, obs=dados_reais)
+rmse_periodo <- rmse_periodo %>% select(V1) %>% na.omit()
+periodo = c(2:8)
+rmse_periodo <- cbind(rmse_periodo, as.data.frame(periodo))
+rmse_periodo <- rmse_periodo %>% rename(media = V1)
+rmse_periodo
+rmse_periodo %>% ggplot(aes(periodo, media)) + geom_line()
+rmse_periodo
