@@ -4,7 +4,7 @@ library(GGally)
 library(ggplot2)
 library(reshape2)
 library(caret)
-library(mlbench)
+#library(mlbench)
 library(hydroGOF)
 
 setwd("Área de Trabalho")
@@ -26,7 +26,7 @@ alunos_max_media <- bind_cols(alunos_max_media,distinct(dados_aluno_cc %>% selec
   select(-Matricula1) %>% na.omit()
 alunos_graduados <- alunos_max_media[complete.cases(alunos_max_media), ]
 
-erro_rmse <- matrix(nrow = nrow(alunos_graduados), ncol = nrow(alunos_graduados))
+#erro_rmse <- matrix(nrow = nrow(alunos_graduados), ncol = nrow(alunos_graduados))
 PRIMEIRO_PER <- list("CALCULO.DIFERENCIAL.E.INTEGRAL.I","ÁLGEBRA.VETORIAL.E.GEOMETRIA.ANALÍTICA","PROGRAMAÇÃO.I",
                      "LABORATÓRIO.DE.PROGRAMAÇÃO.I","INTRODUÇÃO.A.COMPUTAÇÃO","LEITURA.E.PRODUCAO.DE.TEXTOS")
 SEGUNDO_PER <- list("METODOLOGIA.CIENTÍFICA", "FUNDAMENTOS.DE.FÍSICA.CLÁSSICA", "CALCULO.DIFERENCIAL.E.INTEGRAL.II",
@@ -48,6 +48,8 @@ lista_periodos
 ## /// FUNCOES E CONSTANTES \\\##
 K= 3
 NEIGH = 0.7
+N_ALUNOS = 4
+N_DISC = 7
 
 get_sim <- function(df) {
   
@@ -116,75 +118,87 @@ temp <- createDataPartition(alunos_graduados$Periodo_Ingresso, p = 0.90, list = 
 temp
 #### // PREDIZENDO NOTA PARA TODOS OS ALUNOS \\ ####
 
-dados_treino2 <- alunos_graduados %>% mutate(Matricula = 1:59)
+#notas de todas as cadeiras de todos os alunos
+dados_treino2 <- alunos_graduados %>% mutate(Matricula = 1:59) %>% select(-cra, - Periodo_Ingresso)
 head(dados_treino2)
+
+#data frame onde serão guardadas as predições
+predicao_geral <- as.data.frame(matrix(ncol = 7))
+media_rmse <- c(NA)
+predicao_geral <- cbind(predicao_geral, as.data.frame(media_rmse))
+
+resultados2 <- dados_treino2[-temp,]
+resultados2
 
 ## Realizando predição
 
 #calcula para todo as cadeiras por periodo
 for(disciplinas_periodo in 2:length(lista_periodos)){
-  resultados2 <- dados_treino2[-temp,]
-  resultados2
-  erro_rmse <- as.data.frame(matrix(NA, nrow = nrow(resultados2), ncol = 7))
   # cadeiras que serao usadas no calculo
   indices_da_vez <- unlist(lista_periodos[1:disciplinas_periodo])
   indices_da_vez
   treino_valores2 <-  dados_treino2 %>% select(Matricula,indices_da_vez) %>% na.omit()
   head(treino_valores2)
   cadeiras_atuais <- unlist(lista_periodos[disciplinas_periodo])
+  
+  # omitindo os valores das notas de teste
   for(l in 1:lengths(lista_periodos[disciplinas_periodo])) {
     treino_valores2[-temp,][cadeiras_atuais[l]] <- NA
   }
   
 
-  treino_valores2[-temp,]  
+  teste_valores2 <- treino_valores2[-temp,]
+  teste_indices2 <- rownames(teste_valores2)
+  # calculando a correlacao entre os alunos que jah pagaram a cadeira e os que nós queremos calcular
   corr <- treino_valores2 %>% get_sim()
   corr
   # teste para todos os alunos
-  treino_indices2 <- rownames(treino_valores2)
+  # teste_indices2 <- rownames(teste_valores2)
 
-  for(m in 1:length(treino_indices2)) {
-    
-    index <- treino_valores2[c(treino_indices2[m]),1]
-    index
-    k_proximos <- get_neigh(treino_valores2, index, corr)
-  }  
-  for(j in 1:length(disciplinas_periodo)) {
-    pred <- get_score(treino_valores2[, c("Matricula", unlist(lista_periodos[[disciplinas_periodo]][j]))],
-                      k_proximos, unlist(lista_periodos[[disciplinas_periodo]][j]))
-    resultados2[index, disciplinas_periodo[j]] <- pred
+  for(m in 1:length(teste_indices2)) {
+    index <- teste_indices2[m]
+    k_proximos <- get_neigh(teste_valores2, index, corr)
+  
+    for(j in 1:length(cadeiras_atuais)) {
+      pred <- get_score(treino_valores2[, c("Matricula", cadeiras_atuais[j])],
+                        k_proximos, cadeiras_atuais[j])
+      teste_valores2[index, cadeiras_atuais[j]] <- pred
+    }
   }
 
-# simplificando os dados
-dados_reais2 <- alunos_graduados[-temp,cadeiras_atuais]
-predicao2 <- resultados2[, cadeiras_atuais]
-# conversão para quando dados_reais e predicao foram vetores e nao data.frames, a fim de se evitar erro no for seguinte
-if(class(predicao2) == "numeric"){
-  predicao2 <- as.data.frame(predicao2)
-}
-
-if(class(dados_reais2) == "numeric"){
-  dados_reais2 <- as.data.frame(dados_reais2)
-}
-
-#erro_rmse <- cbind(erro_rmse,as.data.frame(cadeiras_atuais))
-erro_rmse
-#rownames(erro_rmse) <-(periodos_dados$matricula)
-for(aluno in 1:length(predicao2)){
-  for(cadeira in 1:length(cadeiras_atuais)) {
-    erro_rmse[aluno,cadeiras_atuais[cadeira]] <- (rmse(sim=predicao2[aluno,cadeira], obs=dados_reais2[aluno,cadeira]))
+  # simplificando os dados
+  dados_reais2 <- alunos_graduados[-temp,cadeiras_atuais]
+  predicao2 <- teste_valores2[, cadeiras_atuais]
+  # conversão para quando dados_reais e predicao foram vetores e nao data.frames, a fim de se evitar erro no for seguinte
+  if(class(predicao2) == "numeric"){
+    predicao2 <- as.data.frame(predicao2)
   }
-}
-length(treino_indices2)
-length(cadeiras_atuais)
-predicao2[1,1]
-# matriculas <- periodos_dados %>% select(matricula)
-erro_rmse <- as.data.frame(erro_rmse) %>% 
-  mutate(media_rmse = rowMeans(as.data.frame(erro_rmse)[,1:7])) 
-# erro_rmse <-bind_cols(as.data.frame(erro_rmse),matriculas) %>% select(matricula, everything()) 
-# head(erro_rmse)
-}
+  
+  if(class(dados_reais2) == "numeric"){
+    dados_reais2 <- as.data.frame(dados_reais2)
+  }
 
+  erro_rmse <- as.data.frame(matrix(NA, nrow = N_ALUNOS, ncol = N_DISC))
+  for(aluno in 1:(N_ALUNOS)){
+    for(cadeira in 1:length(cadeiras_atuais)) {
+      erro_rmse[aluno,cadeira] <- (rmse(sim=predicao2[aluno,cadeira], obs=dados_reais2[aluno,cadeira]))
+    }
+  }
+  erro_rmse[aluno,cadeira]
+  length(treino_indices2)
+  length(cadeiras_atuais)
+  predicao2[1,1]
+  dados_reais2[1,1]
+  # matriculas <- periodos_dados %>% select(matricula)
+  erro_rmse <- as.data.frame(erro_rmse) %>% 
+    mutate(media_rmse = rowMeans(as.data.frame(erro_rmse)[,1:7])) 
+  predicao_geral <- rbind(predicao_geral, erro_rmse)
+  predicao_geral
+  erro_rmse
+  # erro_rmse <-bind_cols(as.data.frame(erro_rmse),matriculas) %>% select(matricula, everything()) 
+  # head(erro_rmse)
+}
+predicao_geral <- predicao_geral %>% na.omit()
 periodos_dados %>% filter(matricula == "B818") %>% select(plp:si1)
 predicao2[110, ]%>% select(plp:si1)
 

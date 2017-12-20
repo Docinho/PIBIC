@@ -143,15 +143,18 @@ temp <- createDataPartition(periodos_dados$Periodo_Ingresso, p = 0.95, list = F)
 
 # os dados de teste são zerados, copiados para uma nova tabela
 # zerando
-teste <- periodos_dados
+treino <- periodos_dados
+treino
 for(i in 1:length(COL_QUARTO_PER)) {
-  teste[-temp,][COL_QUARTO_PER[i]] <- NA
+  treino[-temp,][COL_QUARTO_PER[i]] <- NA
 }
 
  # atribuindo valores numeros as matriculas
-
-teste <- teste %>% bind_cols(matricula_2 = c(1:121)) %>% select(-matricula) %>% select(matricula_2, everything()) %>% rename(matricula = matricula_2)
-head(teste)
+matricula_2 = c(1:121)
+matricula_2
+treino <- cbind(treino,matricula_2)
+treino <- treino %>% select(-matricula) %>% select(matricula_2, everything()) %>% rename(matricula = matricula_2)
+head(treino)
 # copiando
 teste_valores <- teste[-temp, ]
 teste_indices <- rownames(teste_valores)
@@ -171,7 +174,7 @@ for(i in 1:length(teste_indices)) {
   k_proximos <- get_neigh(teste, index, corr)
   
   for(j in 1:length(COL_QUARTO_PER)) {
-    pred <- get_score(teste[, c("matricula", COL_QUARTO_PER[j])],
+    pred <- get_score(treino[, c("matricula", COL_QUARTO_PER[j])],
                       k_proximos, COL_QUARTO_PER[j])
     teste_valores[index, COL_QUARTO_PER[j]] <- pred
   }
