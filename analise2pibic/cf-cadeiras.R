@@ -156,14 +156,14 @@ treino <- cbind(treino,matricula_2)
 treino <- treino %>% select(-matricula) %>% select(matricula_2, everything()) %>% rename(matricula = matricula_2)
 head(treino)
 # copiando
-teste_valores <- teste[-temp, ]
+teste_valores <- treino[-temp, ]
 teste_indices <- rownames(teste_valores)
 teste_indices
 ## Realizando predição
 
 
 # calcula a similaridade entre todos os alunos (de todos para todos) 
-corr <- teste %>% get_sim()
+corr <- treino %>% get_sim()
 head(corr)
 
 

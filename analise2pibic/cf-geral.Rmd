@@ -1,0 +1,51 @@
+---
+title: "CF-genérico"
+author: "Lívia Cavalcanti"
+date: "20 de dezembro de 2017"
+output: html_document
+---
+
+O objetivo desse código é generalizar a predição feita por Collaborative Filtering (<https://rpubs.com/liviaCavalcanti/337528>) para predizer a nota de alunos do curso de Ciência da Computação da Universidade Federal de Campina Grande para o quarto período e compará-la com as notas que os alunos realmente obtiveram. A melhoria em relação ao programa já existente é que a predição pode ser mais automatizada, ela é feita para um conjunto arbitrário de disciplinas a ser escolhido de acordo com o período e o curso em questão. Com isso, basta que seja especificado quais as disciplinas do curso até o período que se deseja predizer e as análises serão feitas até o ponto-alvo. O resultado que obtem-se é a evolução do RMSE ao passo que se aumenta a quantidade de dados analisada, esperando-se com isso uma queda no valor do erro das predições.
+
+## Bibliotecas utilizadas
+Utilizou-se as mesmas bibliotecas do programa anterior. Sendo elas:
+```{r setup, include=FALSE}
+library(dplyr)
+library(corrplot)
+library(GGally)
+library(ggplot2)
+library(reshape2)
+library(caret)
+library(hydroGOF)
+```
+
+```{r bibliotecas, include=TRUE}
+library(dplyr)
+library(corrplot)
+library(GGally)
+library(ggplot2)
+library(reshape2)
+library(caret)
+library(hydroGOF)
+```
+
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r cars}
+summary(cars)
+```
+
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r pressure, echo=FALSE}
+plot(pressure)
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
