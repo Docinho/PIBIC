@@ -1,3 +1,12 @@
+---
+title: "Melhor Número de Vizinhos CF"
+author: "Lívia Cavalcanti"
+date: "21 de dezembro de 2017"
+output: html_document
+---
+
+A fim de analisar qual o melhor número de vizinhos para uma [Filtragem Colaborativa](http://rpubs.com/liviaCavalcanti/343618), analisou-se qual é o menor erro para diferentes números de vizinhos considerando o mesmo algoritmo.
+```{r setup, include=FALSE}
 library(dplyr)
 library(corrplot)
 library(GGally)
@@ -6,9 +15,27 @@ library(reshape2)
 library(caret)
 library(mlbench)
 library(hydroGOF)
+```
 
-setwd("Área de Trabalho")
-dados_alunos <- read.csv("alunosUFCGAnon.csv") 
+## Bibliotecas Utilizadas
+
+```{r bibliotecas, include = TRUE}
+library(dplyr)
+library(corrplot)
+library(GGally)
+library(ggplot2)
+library(reshape2)
+library(caret)
+library(mlbench)
+library(hydroGOF)
+```
+
+
+## Os dados
+Os dados são tratados como anteriormente, veja em <http://rpubs.com/liviaCavalcanti/337528>.
+
+```{r dados}
+dados_alunos <- read.csv("../alunosUFCGAnon.csv") 
 dados_aluno_cc <- dados_alunos %>% filter(Cod_Curso == 14102100 & Cod_Evasao == 0 & Tipo == "Obrigatória")
 dados_aluno_cc <- dados_aluno_cc %>% mutate(Matricula = factor(Matricula)) %>% arrange(Matricula) %>% 
   select(Matricula, Cod_Disciplina, Nome_Disciplina, Periodo, Creditos, Media_Disciplina, Situacao, Periodo_Ingresso, Periodo_Relativo)
@@ -21,7 +48,6 @@ alunos_cra <- dados_aluno_cc %>% mutate(Cra.Crontibute = Media*Creditos) %>% sum
 alunos_max_media <- dados_aluno_cc %>% group_by(Matricula, Media_Disciplina) %>% filter(Media_Disciplina == max(Media_Disciplina)) %>% ungroup() %>%
   select(Nome_Disciplina, Matricula, Media_Disciplina) %>% mutate(Nome_Disciplina = as.factor(gsub(" ", ".", Nome_Disciplina))) %>%
   dcast(Matricula ~ Nome_Disciplina, mean) %>% merge(alunos_cra)
-head(alunos_max_media)
 alunos_max_media <- bind_cols(alunos_max_media,distinct(dados_aluno_cc %>% select(Matricula, Periodo_Ingresso))%>% select(Periodo_Ingresso)) %>% select(-Matricula1)
 alunos_graduados <- alunos_max_media[complete.cases(alunos_max_media), ]
 
@@ -128,10 +154,6 @@ get_score <- function(df, k_neigh, item) {
     return(NA)
   }
   
-  # print(item)
-  # print(notas[, item])
-  # print(sum(notas[, item] * notas$sim) / sum(notas$sim))
-  
   res <- sum(notas[, item] * notas$sim) / sum(notas$sim)
   return(res)
 }
@@ -139,10 +161,16 @@ get_score <- function(df, k_neigh, item) {
 rmse_cross <- as.data.frame(matrix(ncol = 7, nrow = 50))
 media_rmse4 <- as.data.frame(matrix(ncol = 0, nrow = 50))
 
-## // CONSTURINDO OS DATA FRAMES E COLLABORATIVE FILTERING \\##
-for(k in 1:50){
 # separando em teste e treino
 temp <- createDataPartition(periodos_dados$Periodo_Ingresso, p = 0.95, list = F)
+
+```
+
+## Análise
+
+A mudança em relação ao código anterior é que o número de vizinhos 'K' não é mais uma constante, e sim um valor que muda a cada iteração ('K' = 'k'), sendo guardados os valores obtidos para cada 'k'.
+```{r algoritmo, echo=FALSE}
+for(k in 1:50){
 
 # os dados de teste são zerados, copiados para uma nova tabela
 # zerando
@@ -154,17 +182,12 @@ for(i in 1:length(COL_QUARTO_PER)) {
 # atribuindo valores numeros as matriculas
 
 teste <- teste %>% bind_cols(matricula_2 = c(1:121)) %>% select(-matricula) %>% select(matricula_2, everything()) %>% rename(matricula = matricula_2)
-# head(teste)
 # copiando
 teste_valores <- teste[-temp, ]
 teste_indices <- rownames(teste_valores)
-# teste_indices
 ## Realizando predição
 # calcula a similaridade entre todos os alunos (de todos para todos) 
 corr <- teste %>% get_sim()
-# head(corr)
-#for(i in 1:20){
-#  K = i
 
 # calcula predição: média ponderada dos K vizinhos mais próximos
 for(i in 1:length(teste_indices)) {
@@ -185,13 +208,14 @@ for(i in 1:length(teste_indices)) {
 
 }
 
-nome = paste("media_rmse", k, sep = "")
-nome
 r_aux <- (as.data.frame(rmse_cross %>% rowMeans())) %>% rename(media_rmse = `rmse_cross %>% rowMeans()`)
 media_rmse4 <- cbind(media_rmse4, r_aux %>% select(media_rmse))
 }
-colnames(media_rmse4) <- c(1:103)
 
+colnames(media_rmse4) <- c(1:50)
 media_rmse4 <- cbind(media_rmse4, as.data.frame(media_rmse4 %>% rowMeans())) %>% rename(media_geral = `media_rmse4 %>% rowMeans()`)
-media_rmse5 <- media_rmse4[-1,]
-media_rmse5 %>% select(media_geral) %>% filter(media_geral == min(media_geral))
+head(media_rmse4)
+media_rmse4 %>% select(media_geral) %>% filter(media_geral == min(media_geral))
+```
+
+Por fim, foi feita a média de todas as observações por linha, ou seja, número de vizinhos e chegou-se ao valor ideal de 5 vizinhos.

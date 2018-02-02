@@ -7,7 +7,7 @@ library(caret)
 #library(mlbench)
 library(hydroGOF)
 
-setwd("Área de Trabalho")
+setwd("../")
 dados_alunos <- read.csv("alunosUFCGAnon.csv") 
 dados_aluno_cc <- dados_alunos %>% filter(Cod_Curso == 14102100 & Cod_Evasao == 0 & Tipo == "Obrigatória")
 dados_aluno_cc <- dados_aluno_cc %>% mutate(Matricula = factor(Matricula)) %>% arrange(Matricula) %>% 
@@ -18,14 +18,14 @@ dados_aluno_cc <- dados_aluno_cc %>% group_by(Matricula) %>% mutate(Media = roun
 
 # Calulo do CRA
 alunos_cra <- dados_aluno_cc %>% mutate(Cra.Crontibute = Media*Creditos) %>% summarise(cra = sum(Cra.Crontibute)/sum(Creditos))
-alunos_max_media <- dados_aluno_cc %>% group_by(Matricula, Media_Disciplina) %>% filter(Media_Disciplina == max(Media_Disciplina)) %>% ungroup() %>%
+alunos_max_media <- dados_aluno_cc %>% group_by(Matricula, Nome_Disciplina) %>% filter(Media_Disciplina == max(Media_Disciplina)) %>% ungroup() %>%
   select(Nome_Disciplina, Matricula, Media_Disciplina) %>% mutate(Nome_Disciplina = as.factor(gsub(" ", ".", Nome_Disciplina))) %>%
   dcast(Matricula ~ Nome_Disciplina, mean) %>% merge(alunos_cra)
 head(alunos_max_media)
 alunos_max_media <- bind_cols(alunos_max_media,distinct(dados_aluno_cc %>% select(Matricula, Periodo_Ingresso))%>% select(Periodo_Ingresso)) %>% 
   select(-Matricula1) %>% na.omit()
 alunos_graduados <- alunos_max_media[complete.cases(alunos_max_media), ]
-
+head(alunos_graduados)
 #erro_rmse <- matrix(nrow = nrow(alunos_graduados), ncol = nrow(alunos_graduados))
 PRIMEIRO_PER <- list("CALCULO.DIFERENCIAL.E.INTEGRAL.I","ÁLGEBRA.VETORIAL.E.GEOMETRIA.ANALÍTICA","PROGRAMAÇÃO.I",
                      "LABORATÓRIO.DE.PROGRAMAÇÃO.I","INTRODUÇÃO.A.COMPUTAÇÃO","LEITURA.E.PRODUCAO.DE.TEXTOS")
@@ -133,7 +133,6 @@ resultados2 <- dados_treino2[-temp,]
 resultados2
 
 ## Realizando predição
-disciplinas_periodo = 2
 #calcula para todo as cadeiras por periodo
 for(disciplinas_periodo in 2:length(lista_periodos)){
   # cadeiras que serao usadas no calculo
@@ -192,7 +191,7 @@ for(disciplinas_periodo in 2:length(lista_periodos)){
     }
   }
   erro_rmse[aluno,cadeira]
-  length(treino_indices2)
+  #length(treino_indices2)
   length(cadeiras_atuais)
   predicao2[1,1]
   dados_reais2[1,1]
@@ -214,3 +213,5 @@ rmse_periodo <- rmse_periodo %>% rename(media = V1)
 rmse_periodo
 rmse_periodo %>% ggplot(aes(periodo, media)) + geom_line()
 rmse_periodo
+
+  

@@ -1,3 +1,14 @@
+---
+title: "LR vs CF - Predição de Notas"
+author: "Lívia Cavalcanti"
+date: "21 de dezembro de 2017"
+output: html_document
+---
+
+O objetivo do código atual é obter uma predição de notas do quarto período feita a partir de Regressão Linear e compará-la com os resultados obtidos por Filtragem Colaborativa.
+
+# Bibliotecas Utilizadas
+```{r setup, include=FALSE}
 library(dplyr)
 library(corrplot)
 library(GGally)
@@ -6,9 +17,25 @@ library(reshape2)
 library(caret)
 library(mlbench)
 library(grid)
+```
 
-setwd("Área de Trabalho")
-dados_alunos <- read.csv("alunosUFCGAnon.csv") 
+```{r bibliotecas, include=TRUE}
+library(dplyr)
+library(corrplot)
+library(GGally)
+library(ggplot2)
+library(reshape2)
+library(caret)
+library(mlbench)
+library(grid)
+```
+# Os dados
+
+O tratamento dos dados é o mesmo feito [nesta análise de Collaborative Filtering](http://rpubs.com/liviaCavalcanti/343618), isso porque o objetivo atual é trabalhar com matrizes completas de modo a facilitar a avaliação da predição, por exemplo. Aqui a predição a ser feita é para as notas dos alunos de Ciência da Computação da Universidade Federal de Campina Grande em disciplinas do quarto período.
+
+```{r dados, include= TRUE}
+
+dados_alunos <- read.csv("../alunosUFCGAnon.csv") 
 dados_aluno_cc <- dados_alunos %>% filter(Cod_Curso == 14102100 & Cod_Evasao == 0 & Tipo == "Obrigatória")
 dados_aluno_cc <- dados_aluno_cc %>% mutate(Matricula = factor(Matricula)) %>% arrange(Matricula) %>% 
   select(Matricula, Cod_Disciplina, Nome_Disciplina, Periodo, Creditos, Media_Disciplina, Situacao, Periodo_Ingresso, Periodo_Relativo)
@@ -66,7 +93,10 @@ head(primeiro_segundo_periodos)
 primeiro_a_terceiro_periodo <- merge(primeiro_segundo_periodos, terceiro_periodo)
 periodos_dados <- merge(primeiro_a_terceiro_periodo, quarto_periodo) %>% select(matricula, everything())
 head(periodos_dados)
+```
 
+São separados 95% dos dados para treino e guardados seus valores para posterior análise de erro, que devem ser logo em seguidas escondidos no data frame utilizado para predição a fim de que não haja enviesamento da mesma. A matrícula foi transformada em uma sequência numéria mais fácil de ser manipulada.
+```{r amostras, include=TRUE}
 ## Divindo em arquivo de teste e treino
 COL_QUARTO_PER <- colnames(quarto_periodo %>% select(-cra, -matricula))
 temp <- createDataPartition(periodos_dados$Periodo_Ingresso, p = 0.95, list = F)
@@ -91,10 +121,20 @@ head(teste)
 teste_valores <- teste[-temp, ]
 teste_valores
 teste_indices <- rownames(teste_valores)
+```
 
+## Predição
+
+A predição é feita com base na correção entre as cadeiras
+```{r correlacao, include=TRUE}
 corr_cadeiras <- (periodos_dados %>% select(-matricula, -Periodo_Ingresso) %>% cor())
 corrplot(corr_cadeiras)
 corr_cadeiras <- as.data.frame(corr_cadeiras)
+```
+
+Em seguida, considera-se as 10 cadeiras mais semelhantes para cada disciplina do quarto período e controi-se um modelo de Regresão Linear. Que está exemplificado abaixo pela disciplina Organização e Arquitetura de Computadores(OAC). São consideradas doze disciplinas nesse caso, pois a cadeira é semelhante a ela mesma e ao seu respectivo laboratório(Laboratório de Organização e Arquitetura de Computadores - LOAC) que devem ser cursadas simultanemente e devem portanto, serem descartadas para o cálculo do modelo de predição.
+A mesma lógica segue para as disciplinas do quarto período, a saber: Métodos Estatísticos, Paradigmas de Linguagem de Programação, Lógica Matemática, Engenharia de Software I, Sistemas de Informação I e Laboratório de Organização e Arquitetura de Computadores).
+```{r lr, include = TRUE}
 # fazendo predicao para cada cadeira do quarto periodo
 # oac
 analise_oac <- corr_cadeiras %>% select(oac) 
@@ -105,7 +145,9 @@ ranking_oac %>% select(cadeiras)
 modelo_oac <- lm(oac ~ cra + ic + p2 + discreta + linear + prob + metodos + logica + es + si1, data = teste)
 summary(modelo_oac)
 plot(modelo_oac, which = 1:2)
+```
 
+```{r lr2, include=FALSE}
 # loac
 analise_loac <- corr_cadeiras %>% select(loac) 
 ranking_loac <- cbind(analise_loac, as.data.frame(rownames(analise_loac))) 
@@ -165,7 +207,11 @@ ranking_plp %>% select(cadeiras)
 modelo_plp <- lm(si1 ~ cra + ic + discreta + eda + leda + prob + tc + metodos + es + logica, data = teste)
 summary(modelo_plp)
 plot(modelo_plp, which = 1:2)
+```
 
+
+A predicação é feita selecionando-se as notas das cadeiras com maior correlação com a disciplina em questão e fazendo a predição com o modelo previamente obtido para os dados de teste. A seguir temos um exemplo do que é feito para as demais disciplinas do período. 
+```{r predicao, include=TRUE}
 # predição
 RMSE <- function(predicted, true) mean((predicted-true)^2)^.5
 
@@ -175,7 +221,9 @@ teste_oac
 resultados$oac
 predict(modelo_oac, teste_oac)
 RMSE(predict(modelo_oac, teste_oac), resultados$oac)
+```
 
+```{r predicao1, include=FALSE}
 #loac
 ranking_loac$cadeiras
 atributos_desnecessarios <- setdiff(colnames(resultados_geral), ranking_loac$cadeiras)
@@ -238,10 +286,13 @@ teste_si1
 predict(modelo_si1, teste_si1)
 resultados_geral$si1
 RMSE(predict(modelo_si1, teste_si1), resultados$si1)
+```
 
+Em seguida, comparou-se os resultados obtidos com as predições através dos métodos de [Filtragem Colaborativa](https://rpubs.com/liviaCavalcanti/337528) e Regressão Linear.
+```{r rmse, include=FALSE, echo=TRUE}
 #plot comparando rmse 
 
-rmse_regressao <- c(RMSE(predict(modelo_oac, teste_oac), resultados$oac),RMSE(predict(modelo_loac, teste_loac), resultados$loac),RMSE(predict(modelo_metodos, teste_metodos), resultados$metodos), 
+rmse_regressao <- c(RMSE(predict(modelo_oac, teste_oac), resultados$oac),RMSE(predict(modelo_loac, teste_loac),              resultados$loac),RMSE(predict(modelo_metodos, teste_metodos), resultados$metodos), 
                     RMSE(predict(modelo_plp, teste_plp), resultados$plp), RMSE(predict(modelo_logica, teste_logica), resultados$logica), RMSE(predict(modelo_es, teste_es), resultados$es), 
                     RMSE(predict(modelo_si1, teste_si1), resultados$si1))
 rmse_regressao <- as.data.frame(rmse_regressao)
@@ -253,8 +304,7 @@ ColaborativeFiltering <- c(1.2445437, 2.3916986, 0.9132360, 0.9025889, 1.2459712
 cf <- as.data.frame(ColaborativeFiltering)
 disciplinas <- c("oac","loac", "metodos","plp","logica", "es", "si1")
 disciplinas <- as.data.frame(disciplinas)
-rmse_regressao
-cf
+
 comparando_rmse1 <- cbind(rmse_regressao, cf)
 rmse_regressao1 <- rmse_regressao %>% rename(media_rmse = LinearRegression) %>% mutate(tipo = "RegressaoLinear")
 rmse_regressao1 <- cbind(disciplinas, rmse_regressao1)
@@ -262,43 +312,11 @@ rmse_regressao1
 cf1 <- cf %>% rename(media_rmse = ColaborativeFiltering) %>% mutate(tipo = "FiltragemColaborativa")
 cf1 <- cbind(disciplinas, cf1)
 df <- rbind(rmse_regressao1, cf1)
-df %>% ggplot(aes(disciplinas, media_rmse,color = tipo)) + geom_point( show.legend = T) #+ geom_linerange(x = disciplinas, ymin = )
-# K = 10
-# plp  metodos      oac     loac   logica       es      si1 
-# 1.480412 1.513876 1.435620 2.383640 1.292644 1.103542 1.091357 
 
-# k = 3
-# plp   metodos       oac      loac    logica        es       si1 
-# 1.2445437 2.3916986 0.9132360 0.9025889 1.2459712 0.5549775 0.9422195 
-# metodos <- c(1.2445437, 0.8934705, 2.3916986, 0.4665547, 0.9132360, 1.3701633,0.9025889,1.8269845, 1.2459712, 0.4475086,0.5549775,0.8725639, 0.9422195,0.6263398)
-# 
-# plot1 <- comparando_rmse %>%
-#   select(RegressaoLinear, disciplinas) %>%
-#   na.omit() %>%
-#   ggplot() +
-#   geom_point(aes(x = RegressaoLinear, y = disciplinas), size = 0.5, alpha = 0.75) +
-#   ylab("Disciplinas") +
-#   xlab("Regressao Linear")
-#   theme_minimal() +
-#   theme(axis.title.x = element_blank())
-# 
-# plot2 <- comparando_rmse %>%
-#   select(ColaborativeFiltering, disciplinas) %>%
-#   na.omit() %>%
-#   ggplot() +
-#   geom_point(aes(x = ColaborativeFiltering, y = disciplinas), size = 0.5, alpha = 0.75) +
-#   xlab("ColaborativeFiltering") +
-#   theme_minimal() +
-#   theme(axis.title.x = element_blank())
-# 
-# grid.newpage()
-# grid.draw(rbind(ggplotGrob(plot1), ggplotGrob(plot2), size = "last"))
-# comparando_rmse
-#   comparando_rmse %>%
-#   ggplot() +
-#   geom_point(aes(y = ColaborativeFiltering, x = disciplinas), size = 1.5, alpha = 0.75, color = "blue") +
-#   xlab("ColaborativeFiltering") +
-#   geom_point(aes(y = RegressaoLinear, x = disciplinas), size = 1.5, alpha = 0.75, color = "red", show.legend = T) +
-#   ylab("Disciplinas") +
-#   xlab("Regressao Linear")
+```
 
+```{r plot, include = TRUE}
+df %>% ggplot(aes(disciplinas, media_rmse,color = tipo)) + geom_point( show.legend = T)
+```
+
+Testando-se várias vezes, percebe-se que a análise de melhor método depende da amostra considerada.
