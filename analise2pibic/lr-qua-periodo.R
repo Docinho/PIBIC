@@ -7,14 +7,12 @@ library(caret)
 library(mlbench)
 library(grid)
 
-setwd("Área de Trabalho")
+setwd("../")
 dados_alunos <- read.csv("alunosUFCGAnon.csv") 
 dados_aluno_cc <- dados_alunos %>% filter(Cod_Curso == 14102100 & Cod_Evasao == 0 & Tipo == "Obrigatória")
 dados_aluno_cc <- dados_aluno_cc %>% mutate(Matricula = factor(Matricula)) %>% arrange(Matricula) %>% 
   select(Matricula, Cod_Disciplina, Nome_Disciplina, Periodo, Creditos, Media_Disciplina, Situacao, Periodo_Ingresso, Periodo_Relativo)
 dados_aluno_cc <- dados_aluno_cc %>% group_by(Matricula) %>% mutate(Media = round(mean(Media_Disciplina), digits = 2)) %>% filter(!is.na(Media))
-# storing data as factors insures that the modeling functions will treat such data correctly. 
-# Factors in R are stored as a vector of integer values with a corresponding set of character values to use when the factor is displayed
 
 # Calulo do CRA
 alunos_cra <- dados_aluno_cc %>% mutate(Cra.Crontibute = Media*Creditos) %>% summarise(cra = sum(Cra.Crontibute)/sum(Creditos))
@@ -262,43 +260,7 @@ rmse_regressao1
 cf1 <- cf %>% rename(media_rmse = ColaborativeFiltering) %>% mutate(tipo = "FiltragemColaborativa")
 cf1 <- cbind(disciplinas, cf1)
 df <- rbind(rmse_regressao1, cf1)
-df %>% ggplot(aes(disciplinas, media_rmse,color = tipo)) + geom_point( show.legend = T) #+ geom_linerange(x = disciplinas, ymin = )
-# K = 10
-# plp  metodos      oac     loac   logica       es      si1 
-# 1.480412 1.513876 1.435620 2.383640 1.292644 1.103542 1.091357 
+df
+write.csv(df, file = "LReCF.csv",row.names = F)
 
-# k = 3
-# plp   metodos       oac      loac    logica        es       si1 
-# 1.2445437 2.3916986 0.9132360 0.9025889 1.2459712 0.5549775 0.9422195 
-# metodos <- c(1.2445437, 0.8934705, 2.3916986, 0.4665547, 0.9132360, 1.3701633,0.9025889,1.8269845, 1.2459712, 0.4475086,0.5549775,0.8725639, 0.9422195,0.6263398)
-# 
-# plot1 <- comparando_rmse %>%
-#   select(RegressaoLinear, disciplinas) %>%
-#   na.omit() %>%
-#   ggplot() +
-#   geom_point(aes(x = RegressaoLinear, y = disciplinas), size = 0.5, alpha = 0.75) +
-#   ylab("Disciplinas") +
-#   xlab("Regressao Linear")
-#   theme_minimal() +
-#   theme(axis.title.x = element_blank())
-# 
-# plot2 <- comparando_rmse %>%
-#   select(ColaborativeFiltering, disciplinas) %>%
-#   na.omit() %>%
-#   ggplot() +
-#   geom_point(aes(x = ColaborativeFiltering, y = disciplinas), size = 0.5, alpha = 0.75) +
-#   xlab("ColaborativeFiltering") +
-#   theme_minimal() +
-#   theme(axis.title.x = element_blank())
-# 
-# grid.newpage()
-# grid.draw(rbind(ggplotGrob(plot1), ggplotGrob(plot2), size = "last"))
-# comparando_rmse
-#   comparando_rmse %>%
-#   ggplot() +
-#   geom_point(aes(y = ColaborativeFiltering, x = disciplinas), size = 1.5, alpha = 0.75, color = "blue") +
-#   xlab("ColaborativeFiltering") +
-#   geom_point(aes(y = RegressaoLinear, x = disciplinas), size = 1.5, alpha = 0.75, color = "red", show.legend = T) +
-#   ylab("Disciplinas") +
-#   xlab("Regressao Linear")
-
+df %>% ggplot(aes(disciplinas, media_rmse,color = tipo)) + geom_point( show.legend = T)
