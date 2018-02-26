@@ -65,7 +65,7 @@ get_sim <- function(df) {
 # retorna um vector de Named num, cujo nome é a matrícula e o valor a similaridade
 get_neigh <- function(df, index, corr) {
   
-  matr <- (df[index, 1])
+  matr <- df[index, 1]
   
   # todos os vizinhos, porém temos que "invalidar" ele mesmo
   corr[as.double(matr), as.double(matr)] = 0
@@ -135,7 +135,7 @@ resultados2
 ## Realizando predição
 #calcula para todo as cadeiras por periodo
 for(disciplinas_periodo in 2:length(lista_periodos)){
-  # cadeiras que serao usadas no calculo
+  # cadeiras cursadas até o periodo 'atual' que serao usadas no calculo
   indices_da_vez <- unlist(lista_periodos[1:disciplinas_periodo])
   indices_da_vez
   treino_valores2 <-  dados_treino2 %>% select(Matricula,indices_da_vez) %>% na.omit()
