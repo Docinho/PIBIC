@@ -116,6 +116,7 @@ get_score <- function(df, k_neigh, item) {
 # separando em teste e treino
 temp <- createDataPartition(alunos_graduados$Periodo_Ingresso, p = 0.90, list = F)
 temp
+treino_valores2[,c("Matricula", "PROJETO.EM.COMPUTAÇÃO.II")]
 
 rmse_periodo <- as.data.frame(matrix(NA, nrow = 7))
 #### // PREDIZENDO NOTA PARA TODOS OS ALUNOS \\ ####
@@ -131,7 +132,8 @@ predicao_geral <- cbind(predicao_geral, as.data.frame(media_rmse))
 
 resultados2 <- dados_treino2[-temp,]
 resultados2
-
+treino_valores2[, c("Matricula", cadeiras_atuais[j])]
+c("Matricula", cadeiras_atuais[j])
 ## Realizando predição
 #calcula para todo as cadeiras por periodo
 for(disciplinas_periodo in 2:length(lista_periodos)){
@@ -153,7 +155,7 @@ for(disciplinas_periodo in 2:length(lista_periodos)){
   teste_indices2 <- rownames(teste_valores2)
   # calculando a correlacao entre os alunos que jah pagaram a cadeira e os que nós queremos calcular
   corr <- treino_valores2 %>% get_sim()
-  corr
+  # corr
   # teste para todos os alunos
   # teste_indices2 <- rownames(teste_valores2)
 
@@ -161,7 +163,7 @@ for(disciplinas_periodo in 2:length(lista_periodos)){
     # m = 4
     index <- teste_indices2[m]
     k_proximos <- get_neigh(teste_valores2, index, corr)
-  k_proximos
+  # k_proximos
     for(j in 1:length(cadeiras_atuais)) {
       pred <- get_score(treino_valores2[, c("Matricula", cadeiras_atuais[j])],
                         k_proximos, cadeiras_atuais[j])

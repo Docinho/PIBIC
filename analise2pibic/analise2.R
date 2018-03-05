@@ -78,7 +78,7 @@ lm.p1
 par(mfrow = c(1, 6))
 termplot(lm.p1, partial.resid = TRUE, smooth = panel.smooth, span.smth = 1/4)
 par(mfrow=c(2,1))
-plot(lm.pl, which = 1:2)
+plot(lm.p1, which = 1:2)
 
 lm.p2 <- lm(cra~., data = segundo_periodo %>% select(-matricula))
 summary(lm.p2)

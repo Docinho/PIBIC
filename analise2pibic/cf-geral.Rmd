@@ -87,7 +87,7 @@ N_ALUNOS = 4
 N_DISC = 7
 ```
 
-As funções também já são conhecidas: 'get_sim' retorna a similaridade entre todos os aluno; 'get_neigh', os 'K' alunos mais semelhantes de acordo com 'NEIGH'; e 'get_score' que calcula as notas preditas.
+As funções também já são conhecidas: 'get_sim' retorna a similaridade entre todos os alunos; 'get_neigh', os 'K' alunos mais semelhantes de acordo com 'NEIGH'; e 'get_score' que calcula as notas preditas.
 ```{r funcoes, include = TRUE}
 get_sim <- function(df) {
   
@@ -142,10 +142,6 @@ get_score <- function(df, k_neigh, item) {
   if(nrow(eh_valido) == 0) {
     return(NA)
   }
-  
-  # print(item)
-  # print(notas[, item])
-  # print(sum(notas[, item] * notas$sim) / sum(notas$sim))
   
   res <- sum(notas[, item] * notas$sim) / sum(notas$sim)
   return(res)
@@ -253,6 +249,6 @@ rmse_periodo <- rmse_periodo %>% rename(media = V1)
 
 ```{r grafico, include=TRUE}
 rmse_periodo
-rmse_periodo %>% ggplot(aes(periodo, media)) + geom_line()
+rmse_periodo %>% ggplot(aes(periodo, media)) + ggtitle("RMSE de CF do segundo ao oitavo período de Ciência da Computação da UFCG") + xlab("Período") + ylab("RMSE") + geom_line()
 ```
 
