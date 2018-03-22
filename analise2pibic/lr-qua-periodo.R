@@ -6,30 +6,48 @@ library(reshape2)
 library(caret)
 library(mlbench)
 library(grid)
+library(knitr)
+library(kableExtra)
 
-setwd("../")
+# leitura dos dados dos alunos da UFCG
 dados_alunos <- read.csv("alunosUFCGAnon.csv") 
+
+# filtragem dos alunos de Computação que não evadiram e suas respectivas notas nas cadeiras obrigatórias
 dados_aluno_cc <- dados_alunos %>% filter(Cod_Curso == 14102100 & Cod_Evasao == 0 & Tipo == "Obrigatória")
+
+# geração de tabela com estilo html para melhor leitura dos dados // optativa
+# kable(dados_aluno_cc, "html") %>% kable_styling(bootstrap_options = "striped", full_width = F)
+
+# ordenação dos alunos pela matricula e seleção das features utilizadas pelo algoritmo
 dados_aluno_cc <- dados_aluno_cc %>% mutate(Matricula = factor(Matricula)) %>% arrange(Matricula) %>% 
   select(Matricula, Cod_Disciplina, Nome_Disciplina, Periodo, Creditos, Media_Disciplina, Situacao, Periodo_Ingresso, Periodo_Relativo)
+
+# cálculo da média das notas dos alunos em todas as disciplinas removevendo os alunos que trancaram alguma cadeira, pois com isso sua média fica NA
 dados_aluno_cc <- dados_aluno_cc %>% group_by(Matricula) %>% mutate(Media = round(mean(Media_Disciplina), digits = 2)) %>% filter(!is.na(Media))
 
-# Calulo do CRA
+# cálulo do CRA
 alunos_cra <- dados_aluno_cc %>% mutate(Cra.Crontibute = Media*Creditos) %>% summarise(cra = sum(Cra.Crontibute)/sum(Creditos))
+
+# criando data frame com as notas de aprovação de cada aluno na respectiva cadeira e seu CRA e renomeando as disicplinas
 alunos_max_media <- dados_aluno_cc %>% group_by(Matricula, Media_Disciplina) %>% filter(Media_Disciplina == max(Media_Disciplina)) %>% ungroup() %>%
   select(Nome_Disciplina, Matricula, Media_Disciplina) %>% mutate(Nome_Disciplina = as.factor(gsub(" ", ".", Nome_Disciplina))) %>%
   dcast(Matricula ~ Nome_Disciplina, mean) %>% merge(alunos_cra)
-alunos_max_media <- bind_cols(alunos_max_media,distinct(dados_aluno_cc %>% select(Matricula, Periodo_Ingresso))%>% select(Periodo_Ingresso)) %>% select(-Matricula1)
+
+# adicionando coluna de período de ingresso
+alunos_max_media <- bind_cols(alunos_max_media,distinct(dados_aluno_cc %>% select(Matricula, Periodo_Ingresso)) %>% select(Periodo_Ingresso)) %>% select(-Matricula1)
+
+# removendo os alunos que não pagaram alguma cadeira / seleção apenas dos graduados
 alunos_graduados <- alunos_max_media[complete.cases(alunos_max_media), ]
 
 ##Organizando os data frames principais
-# separando alunos por periodo 
+
+# data grames das notas dos alunos por periodo
 primeiro_periodo <- alunos_max_media %>% select(Matricula, cra, CALCULO.DIFERENCIAL.E.INTEGRAL.I, ÁLGEBRA.VETORIAL.E.GEOMETRIA.ANALÍTICA, PROGRAMAÇÃO.I, 
                                                 LABORATÓRIO.DE.PROGRAMAÇÃO.I, INTRODUÇÃO.A.COMPUTAÇÃO, LEITURA.E.PRODUCAO.DE.TEXTOS, Periodo_Ingresso) %>%
   na.omit(primeiro_periodo) %>% arrange(Matricula) %>%
   rename(matricula = Matricula, cra = cra,calculo1 = CALCULO.DIFERENCIAL.E.INTEGRAL.I, vetorial = ÁLGEBRA.VETORIAL.E.GEOMETRIA.ANALÍTICA, p1 = PROGRAMAÇÃO.I,
          lp1 = LABORATÓRIO.DE.PROGRAMAÇÃO.I, ic = INTRODUÇÃO.A.COMPUTAÇÃO, lpt = LEITURA.E.PRODUCAO.DE.TEXTOS)
-head(primeiro_periodo)
+# head(primeiro_periodo)
 
 segundo_periodo <- alunos_max_media %>% 
   select(Matricula,cra, CALCULO.DIFERENCIAL.E.INTEGRAL.II, FUNDAMENTOS.DE.FÍSICA.CLÁSSICA, TEORIA.DOS.GRAFOS, PROGRAMAÇÃO.II,
@@ -37,7 +55,7 @@ segundo_periodo <- alunos_max_media %>%
   arrange(Matricula) %>%
   rename(matricula = Matricula, cra = cra,calculo2 = CALCULO.DIFERENCIAL.E.INTEGRAL.II, classica = FUNDAMENTOS.DE.FÍSICA.CLÁSSICA,
          grafos = TEORIA.DOS.GRAFOS, p2 = PROGRAMAÇÃO.II, lp2 = LABORATÓRIO.DE.PROGRAMAÇÃO.II, discreta = MATEMÁTICA.DISCRETA)
-head(segundo_periodo)
+# head(segundo_periodo)
 
 terceiro_periodo <- alunos_max_media %>%
   select(Matricula,cra, ESTRUTURA.DE.DADOS.E.ALGORITMOS, LAB.DE.ESTRUTURA.DE.DADOS.E.ALGORITMOS, FUNDAMENTOS.DE.FÍSICA.MODERNA, 
@@ -46,7 +64,7 @@ terceiro_periodo <- alunos_max_media %>%
   arrange(Matricula) %>%
   rename(matricula = Matricula, eda = ESTRUTURA.DE.DADOS.E.ALGORITMOS, leda =  LAB.DE.ESTRUTURA.DE.DADOS.E.ALGORITMOS, moderna =  FUNDAMENTOS.DE.FÍSICA.MODERNA, 
          linear = ALGEBRA.LINEAR.I, prob = PROBABILIDADE.E.ESTATISTICA, tc = TEORIA.DA.COMPUTAÇÃO, gi = GERÊNCIA.DA.INFORMAÇÃO)
-head(terceiro_periodo)
+# head(terceiro_periodo)
 
 quarto_periodo <- alunos_max_media %>% select(Matricula, cra, PARADIGMAS.DE.LING..DE.PROGRAMAÇÃO, METODOS.ESTATISTICOS, ORG.E.ARQUITETURA.DE.COMPUTADORES.I, 
                                               LAB.DE.ORG.E.ARQUITETURA.DE.COMPUTADORES, LÓGICA.MATEMÁTICA, ENGENHARIA.DE.SOFTWARE.I, SISTEMAS.DE.INFORMAÇÃO.I) %>%
@@ -54,54 +72,64 @@ quarto_periodo <- alunos_max_media %>% select(Matricula, cra, PARADIGMAS.DE.LING
   arrange(Matricula)%>% 
   rename(matricula = Matricula, plp = PARADIGMAS.DE.LING..DE.PROGRAMAÇÃO, metodos = METODOS.ESTATISTICOS, oac = ORG.E.ARQUITETURA.DE.COMPUTADORES.I, 
          loac = LAB.DE.ORG.E.ARQUITETURA.DE.COMPUTADORES, logica = LÓGICA.MATEMÁTICA, es = ENGENHARIA.DE.SOFTWARE.I, si1 = SISTEMAS.DE.INFORMAÇÃO.I)
-head(quarto_periodo)
+# head(quarto_periodo)
 
 # Unindo os periodos
 primeiro_segundo_periodos <- merge(primeiro_periodo, segundo_periodo)
-head(primeiro_segundo_periodos)
+# head(primeiro_segundo_periodos)
 
 # Primeiro, segundo e terceiro periodo
 primeiro_a_terceiro_periodo <- merge(primeiro_segundo_periodos, terceiro_periodo)
 periodos_dados <- merge(primeiro_a_terceiro_periodo, quarto_periodo) %>% select(matricula, everything())
-head(periodos_dados)
+# head(periodos_dados)
 
 ## Divindo em arquivo de teste e treino
 COL_QUARTO_PER <- colnames(quarto_periodo %>% select(-cra, -matricula))
+# devido ao tamanho do data frame foi escolhido 95% do data frame para treino
 temp <- createDataPartition(periodos_dados$Periodo_Ingresso, p = 0.95, list = F)
+temp
 
-# os dados de teste são zerados, copiados para uma nova tabela
-# zerando
 teste <- periodos_dados
-
+# selecionando as notas do quarto periodo, o que será usado para avaliar o desempenho do algoritmo
 resultados_geral <-teste[-temp,] 
 resultados <-teste[-temp, COL_QUARTO_PER] 
 resultados
 
+# zerando as notas a serem preditas
 for(i in 1:length(COL_QUARTO_PER)) {
   teste[-temp,][COL_QUARTO_PER[i]] <- NA
 }
 
-# atribuindo valores numeros as matriculas
+# atribuindo valores numericos as matriculas
 teste <- teste %>% bind_cols(matricula_2 = c(1:121)) %>% select(-matricula) %>% select(matricula_2, everything()) %>% rename(matricula = matricula_2)
 head(teste)
 
-# copiando
+# copiando os alunos que serão usados para teste
 teste_valores <- teste[-temp, ]
 teste_valores
 teste_indices <- rownames(teste_valores)
 
+# verificando a correlação das cadeiras do primeiro ao quarto periodo a partir das notas dos alunos
 corr_cadeiras <- (periodos_dados %>% select(-matricula, -Periodo_Ingresso) %>% cor())
 corrplot(corr_cadeiras)
+
+# gerando um data frame da correlação
 corr_cadeiras <- as.data.frame(corr_cadeiras)
-# fazendo predicao para cada cadeira do quarto periodo
+
+# construindo um modelo de predicao para cada cadeira do quarto periodo
 # oac
+#selecionando as cadeiras correlacionadas a oac e sua respectiva correlação
 analise_oac <- corr_cadeiras %>% select(oac) 
 ranking_oac <- cbind(analise_oac, as.data.frame(rownames(analise_oac))) 
 ranking_oac <- top_n(ranking_oac, 12,oac) %>% rename(cadeiras = "rownames(analise_oac)")
+# lista das cadeiras mais correlacionadas com oac
 ranking_oac %>% select(cadeiras)
 
+#  criação do modelo a partir de teste
 modelo_oac <- lm(oac ~ cra + ic + p2 + discreta + linear + prob + metodos + logica + es + si1, data = teste)
+#resumo do modelo
 summary(modelo_oac)
+#plots dos modelos
 plot(modelo_oac, which = 1:2)
 
 # loac
@@ -164,14 +192,18 @@ modelo_plp <- lm(si1 ~ cra + ic + discreta + eda + leda + prob + tc + metodos + 
 summary(modelo_plp)
 plot(modelo_plp, which = 1:2)
 
-# predição
+## Predição
+# função de cálculo do RMSE
 RMSE <- function(predicted, true) mean((predicted-true)^2)^.5
 
 #oac
+# selecionando as cadeiras utilizadas para a criação do modelo a partir do data frame a ser utilizado como teste
 teste_oac <- resultados_geral %>% select(-matricula, -Periodo_Ingresso, -calculo1, -vetorial, -p1, -lp1, -lpt, -calculo2, -classica, -grafos, -lp2, -eda, -leda, -moderna, -tc, -gi, -plp, -oac)
 teste_oac
 resultados$oac
+# predição
 predict(modelo_oac, teste_oac)
+# calculo do erro para oac
 RMSE(predict(modelo_oac, teste_oac), resultados$oac)
 
 #loac
@@ -237,7 +269,7 @@ predict(modelo_si1, teste_si1)
 resultados_geral$si1
 RMSE(predict(modelo_si1, teste_si1), resultados$si1)
 
-#plot comparando rmse 
+# Plot comparando RMSE de COllaborative Filtering e Linear Regression
 
 rmse_regressao <- c(RMSE(predict(modelo_oac, teste_oac), resultados$oac),RMSE(predict(modelo_loac, teste_loac), resultados$loac),RMSE(predict(modelo_metodos, teste_metodos), resultados$metodos), 
                     RMSE(predict(modelo_plp, teste_plp), resultados$plp), RMSE(predict(modelo_logica, teste_logica), resultados$logica), RMSE(predict(modelo_es, teste_es), resultados$es), 
