@@ -5,64 +5,72 @@ library(ggplot2)
 library(reshape2)
 library(caret)
 
-setwd("Área de Trabalho")
+# leitura dos dados dos alunos da UFCG
 dados_alunos <- read.csv("alunosUFCGAnon.csv") 
+
+# filtragem dos alunos de Computação que não evadiram e suas respectivas notas nas cadeiras obrigatórias
 dados_aluno_cc <- dados_alunos %>% filter(Cod_Curso == 14102100 & Cod_Evasao == 0 & Tipo == "Obrigatória")
+
+# ordenação dos alunos pela matricula e seleção das features utilizadas pelo algoritmo
 dados_aluno_cc <- dados_aluno_cc %>% mutate(Matricula = factor(Matricula)) %>% arrange(Matricula) %>% 
   select(Matricula, Cod_Disciplina, Nome_Disciplina, Periodo, Creditos, Media_Disciplina, Situacao, Periodo_Ingresso, Periodo_Relativo)
+
+# cálculo da média das notas dos alunos em todas as disciplinas removevendo os alunos que trancaram alguma cadeira, pois com isso sua média fica NA
 dados_aluno_cc <- dados_aluno_cc %>% group_by(Matricula) %>% mutate(Media = round(mean(Media_Disciplina), digits = 2)) %>% filter(!is.na(Media))
 # storing data as factors insures that the modeling functions will treat such data correctly. 
 # Factors in R are stored as a vector of integer values with a corresponding set of character values to use when the factor is displayed
 
 # Calulo do CRA
 alunos_cra <- dados_aluno_cc %>% mutate(Cra.Crontibute = Media*Creditos) %>% summarise(cra = sum(Cra.Crontibute)/sum(Creditos))
+
+# criando data frame com as notas de aprovação de cada aluno na respectiva cadeira e seu CRA e renomeando as disicplinas
 alunos_max_media <- dados_aluno_cc %>% group_by(Matricula, Media_Disciplina) %>% filter(Media_Disciplina == max(Media_Disciplina)) %>% ungroup() %>%
   select(Nome_Disciplina, Matricula, Media_Disciplina) %>% mutate(Nome_Disciplina = as.factor(gsub(" ", ".", Nome_Disciplina))) %>%
   dcast(Matricula ~ Nome_Disciplina, mean)
+
 alunos_max_media <- alunos_max_media %>% subset(select = -`SEMINÁRIOS.(EDUCAÇÃO.AMBIENTAL)`)
+
+# selecionando apenas os alunos que concluíram o curso
 alunos_graduados <- alunos_max_media[complete.cases(alunos_max_media), ]
 
-
+# data frame de notas em cada cadeira
 dados.graduados.ibs <- (alunos_graduados[,!(names(alunos_graduados) %in% c("Matricula"))])
 
-# Create a helper function to calculate the cosine between two vectors
-getCosine <- function(x,y) 
-{
+
+###############################################
+# Matriz de Similaridade entre as disciplinas #
+###############################################
+
+# Função de cálculo de similaridade
+getCosine <- function(x,y) {
   this.cosine <- sum(x*y) / (sqrt(sum(x*x)) * sqrt(sum(y*y)))
   return(this.cosine)
 }
 
-# Create a placeholder dataframe listing item vs. item
+# Data frame vazio de disciplina vs. disciplina
 holder <- matrix(NA, nrow=ncol(dados.graduados.ibs),ncol=ncol(dados.graduados.ibs),dimnames=list(colnames(dados.graduados.ibs),colnames(dados.graduados.ibs)))
 dados.graduados.ibs.similarity <- as.data.frame(holder)
 
-# Lets fill in those empty spaces with cosine similarities
+# Calculo da similaridade por disciplina
 for(i in 1:ncol(dados.graduados.ibs)) {
   for(j in 1:ncol(dados.graduados.ibs)) {
     dados.graduados.ibs.similarity[i,j]= getCosine(dados.graduados.ibs[i],dados.graduados.ibs[j])
   }
 }
 
-
-# Get the top 10 neighbours for each
+# Calculando as disciplinas mais similares
 dados.graduados.neighbours <- matrix(NA, nrow=ncol(dados.graduados.ibs.similarity),ncol=11,dimnames=list(colnames(dados.graduados.ibs.similarity)))
 
-for(i in 1:ncol(dados.graduados.ibs)) 
-{
+for(i in 1:ncol(dados.graduados.ibs)) {
   dados.graduados.neighbours[i,] <- (t(head(n=11,rownames(dados.graduados.ibs.similarity[order(dados.graduados.ibs.similarity[,i],decreasing=TRUE),][i]))))
 }
 
 
-############################
-# User Scores Matrix       #
-############################    
-# Process:
-# Choose a product, see if the user purchased a product
-# Get the similarities of that product's top 10 neighbours
-# Get the purchase record of that user of the top 10 neighbours
-# Do the formula: sumproduct(purchaseHistory, similarities)/sum(similarities)
+##########################################
+# Matriz de Similaridade entre os alunos #
+##########################################
 
-# Lets make a helper function to calculate the scores
+# Calculo da nota
 getScore <- function(history, similarities)
 {
   x <- sum(history*similarities)/sum(similarities)
