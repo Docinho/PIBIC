@@ -11,7 +11,6 @@ library(Matrix)
 library(stringr)
 library(recosystem)
 
-setwd("Área de Trabalho")
 dados_alunos <- read.csv("alunosUFCGAnon.csv") 
 dados_aluno_cc <- dados_alunos %>% filter(Cod_Curso == 14102100 & Cod_Evasao == 0 & Tipo == "Obrigatória")
 dados_aluno_cc <- dados_aluno_cc %>% mutate(Matricula = factor(Matricula)) %>% arrange(Matricula) %>% 
@@ -119,6 +118,7 @@ r$train(train_set, opts = list(costp_l1 = 0, costq_l1 = 0,
                            lrate = c(0.2), niter = 50, nthread = 2, verbose = T))
 # com non-negative matrix factorization os erros aumentaram 
 
-print(scan(pred_file, n = 10))
+# print(scan(pred_file, n = 10))
 pred_rvec = r$predict(test_set, out_memory())
+pred_rvec
 head(pred_rvec, 10)
