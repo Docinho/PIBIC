@@ -1,4 +1,4 @@
-##Recomendação de disciplinas
+## Recomendação de disciplinas
 
 Códigos do PIBIC 2017.2-2018.1 na Universidade Federal de Campina Grande (UFCG) com o objetivo de desenvolver uma ferramenta auxiliar de recomendação automática de disciplinas por meio de Sistemas de Recomendação. 
 O projeto é uma continuidade do [Cursos UFCG](http://analytics.ufcg.edu.br/cursosufcg/#/).  
