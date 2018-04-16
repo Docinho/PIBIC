@@ -1,0 +1,254 @@
+---
+title: "CF-genérico"
+author: "Lívia Cavalcanti"
+date: "20 de dezembro de 2017"
+output: html_document
+---
+
+O objetivo desse código é generalizar a predição feita por Collaborative Filtering (<https://rpubs.com/liviaCavalcanti/337528>) para predizer a nota de alunos do curso de Ciência da Computação da Universidade Federal de Campina Grande(UFCG) para o quarto período e compará-la com as notas que os alunos realmente obtiveram. A melhoria em relação ao programa já existente é que a predição pode ser mais automatizada, ela é feita para um conjunto arbitrário de disciplinas a ser escolhido de acordo com o período e o curso em questão. Com isso, basta que seja especificado quais as disciplinas do curso até o período que se deseja predizer e as análises serão feitas até o ponto-alvo. O resultado que obtem-se é a evolução do RMSE ao passo que se aumenta a quantidade de dados analisada, esperando-se com isso uma queda no valor do erro das predições.
+
+## Bibliotecas utilizadas
+Utilizou-se as mesmas bibliotecas do programa anterior. Sendo elas:
+```{r setup, include=FALSE}
+library(dplyr)
+library(corrplot)
+library(GGally)
+library(ggplot2)
+library(reshape2)
+library(caret)
+library(hydroGOF)
+```
+
+```{r bibliotecas, include=TRUE}
+library(dplyr)
+library(corrplot)
+library(GGally)
+library(ggplot2)
+library(reshape2)
+library(caret)
+library(hydroGOF)
+```
+
+
+## Os dados
+
+Estão sendo utilizados os dados dos estudantes de Computação da UFCG, assim como anteriormente, e está sendo feito o mesmo tratamento dos dados. 
+Em resumo, são considerados os estudantes que concluíram o curso, ou seja, tem-se todas as notas de cada um, sendo considerada apenas a nota que o estudante passou em cada cadeira, tratada no código como a maior nota do aluno naquela disciplina.
+```{r dados, include=TRUE}
+
+dados_alunos <- read.csv("../alunosUFCGAnon.csv") 
+dados_aluno_cc <- dados_alunos %>% filter(Cod_Curso == 14102100 & Cod_Evasao == 0 & Tipo == "Obrigatória")
+dados_aluno_cc <- dados_aluno_cc %>% mutate(Matricula = factor(Matricula)) %>% arrange(Matricula) %>% 
+  select(Matricula, Cod_Disciplina, Nome_Disciplina, Periodo, Creditos, Media_Disciplina, Situacao, Periodo_Ingresso, Periodo_Relativo)
+dados_aluno_cc <- dados_aluno_cc %>% group_by(Matricula) %>% mutate(Media = round(mean(Media_Disciplina), digits = 2)) %>% filter(!is.na(Media))
+
+# Calulo do CRA
+alunos_cra <- dados_aluno_cc %>% mutate(Cra.Crontibute = Media*Creditos) %>% summarise(cra = sum(Cra.Crontibute)/sum(Creditos))
+alunos_max_media <- dados_aluno_cc %>% group_by(Matricula, Nome_Disciplina) %>% filter(Media_Disciplina == max(Media_Disciplina)) %>% ungroup() %>%
+  select(Nome_Disciplina, Matricula, Media_Disciplina) %>% mutate(Nome_Disciplina = as.factor(gsub(" ", ".", Nome_Disciplina))) %>%
+  dcast(Matricula ~ Nome_Disciplina, mean) %>% merge(alunos_cra)
+alunos_max_media <- bind_cols(alunos_max_media,distinct(dados_aluno_cc %>% select(Matricula, Periodo_Ingresso))%>% select(Periodo_Ingresso)) %>% 
+  select(-Matricula1) %>% na.omit()
+# Alunos que possuem todas as notas
+alunos_graduados <- alunos_max_media[complete.cases(alunos_max_media), ]
+head(alunos_graduados)
+```
+É preciso listar todas as cadeiras de interesse, aqui,  todas as cadeiras do curso separadas por período.
+```{r disciplinas, include=TRUE}
+PRIMEIRO_PER <- list("CALCULO.DIFERENCIAL.E.INTEGRAL.I","ÁLGEBRA.VETORIAL.E.GEOMETRIA.ANALÍTICA","PROGRAMAÇÃO.I",
+                     "LABORATÓRIO.DE.PROGRAMAÇÃO.I","INTRODUÇÃO.A.COMPUTAÇÃO","LEITURA.E.PRODUCAO.DE.TEXTOS")
+SEGUNDO_PER <- list("METODOLOGIA.CIENTÍFICA", "FUNDAMENTOS.DE.FÍSICA.CLÁSSICA", "CALCULO.DIFERENCIAL.E.INTEGRAL.II",
+                    "MATEMÁTICA.DISCRETA", "PROGRAMAÇÃO.II", "TEORIA.DOS.GRAFOS","LABORATÓRIO.DE.PROGRAMAÇÃO.II")
+TERCEIRO_PER <- list("ALGEBRA.LINEAR.I", "FUNDAMENTOS.DE.FÍSICA.MODERNA", "TEORIA.DA.COMPUTAÇÃO", "ESTRUTURA.DE.DADOS.E.ALGORITMOS",
+                     "GERÊNCIA.DA.INFORMAÇÃO", "LAB.DE.ESTRUTURA.DE.DADOS.E.ALGORITMOS", "PROBABILIDADE.E.ESTATISTICA")
+QUARTO_PER <- list("METODOS.ESTATISTICOS","PARADIGMAS.DE.LING..DE.PROGRAMAÇÃO", "LÓGICA.MATEMÁTICA", "ORG.E.ARQUITETURA.DE.COMPUTADORES.I", 
+                   "ENGENHARIA.DE.SOFTWARE.I","SISTEMAS.DE.INFORMAÇÃO.I","LAB.DE.ORG.E.ARQUITETURA.DE.COMPUTADORES")
+QUINTO_PER <- list("INFORMÁTICA.E.SOCIEDADE", "LABORATÓRIO.DE.ENGENHARIA.DE.SOFTWARE", "ANÁLISE.E.TÉCNICA.DE.ALGORITMOS",
+                   "COMPILADORES", "REDES.DE.COMPUTADORES", "BANCO.DE.DADOS.I", "SISTEMAS.DE.INFORMAÇÃO.II")
+SEXTO_PER <- list("DIREITO.E.CIDADANIA", "LAB.DE.INTERCON.DE.REDES.DE.COMPUTADORES", "INTERCONEXÃO.DE.REDES.DE.COMPUTADORES",
+                  "SISTEMAS.OPERACIONAIS", "BANCO.DE.DADOS.II","INTELIGENCIA.ARTIFICIAL.I")
+SETIMO_PER <- list("PROJETO.EM.COMPUTAÇÃO.I", "MÉTODOS.E.SOFTWARE.NUMÉRICOS", "AVAL.DE.DESEMPENHO.DE.SISTEMAS.DISCRETOS")
+OITAVO_PER <- list("PROJETO.EM.COMPUTAÇÃO.II")
+```
+
+Elas são agrupadas em uma lista de listas para que o cálculo possa ser realizado sobre cada uma delas e considerando suas anteriores de forma mais automatizada.
+```{r cadeiras Curso, include=TRUE}
+lista_periodos <- list(PRIMEIRO_PER, SEGUNDO_PER, TERCEIRO_PER, QUARTO_PER, QUINTO_PER,SEXTO_PER, SETIMO_PER, OITAVO_PER)
+lista_periodos
+```
+
+## Funções e constantes
+
+As constantes utilizadas nesse código são relativas a quantidade de vizinhos a serem utilizados no cálculo do score('K') que foi calculado em outro código; a similaridade necessária para que dois indivíduos sejam considerados como vizinhos('NEIGH'), a quantidade de alunos utilizada para o teste('N_ALUNOS'), esta dependerá da porcentagem da amostra definida para teste e da quantidade de dados, nesse caso ela tem valor 4; e o número máximo de disciplinas cursadas num período(N_DISC), para que os dados sejam armazenados corretamente.
+```{r consntantes, include=TRUE}
+K = 3
+NEIGH = 0.7
+N_ALUNOS = 4
+N_DISC = 7
+```
+
+As funções também já são conhecidas: 'get_sim' retorna a similaridade entre todos os alunos; 'get_neigh', os 'K' alunos mais semelhantes de acordo com 'NEIGH'; e 'get_score' que calcula as notas preditas.
+```{r funcoes, include = TRUE}
+get_sim <- function(df) {
+  
+  row.names(df) <- df$Matricula
+  df <- df %>% subset(select=-c(Matricula))
+  
+  inv_df <- as.data.frame(t(df))
+  
+  res <- cor(inv_df[sapply(inv_df, is.numeric)], use="p", method='pearson')
+  return(res);
+}
+
+# retorna um vector de Named num, cujo nome é a matrícula e o valor a similaridade
+get_neigh <- function(df, index, corr) {
+  
+  matr <- (df[index, 1])
+  
+  # todos os vizinhos, porém temos que "invalidar" ele mesmo
+  corr[as.double(matr), as.double(matr)] = 0
+  all_neigh <- corr[matr, ]
+  
+  k_neigh <- sort(all_neigh, decreasing = T)[1:K]
+  
+  return(k_neigh);
+}
+
+# calcula score ignorando vizinhos com NAs
+get_score <- function(df, k_neigh, item) {
+  
+  notas <- subset(df, Matricula %in% names(k_neigh))
+  
+  # removendo vizinhos que não possuem notas
+  notas <- na.omit(notas) 
+  
+  # se todas as notas dos vizinhos forem NAs ou nenhum vizinho com
+  # nota tenha similaridade > NEIGH consideramos que esse aluno
+  # não tem vizinhos
+  if(nrow(notas) == 0) {
+    return(NA)
+  }
+  
+  # atualizando similaridade
+  notas$sim <- 0
+  for(i in 1:length(notas$Matricula)) {
+    notas$sim[i] <- k_neigh[as.character(notas$Matricula[i])] 
+  }
+  
+  # se todas as notas dos vizinhos forem NAs ou nenhum vizinho com
+  # nota tenha similaridade > NEIGH consideramos que esse aluno
+  # não tem vizinhos
+  eh_valido <- notas[notas$sim > NEIGH,]
+  if(nrow(eh_valido) == 0) {
+    return(NA)
+  }
+  
+  res <- sum(notas[, item] * notas$sim) / sum(notas$sim)
+  return(res)
+}
+```
+
+Os dados são separados em dados de treino(90%) e teste. É criado um data frame para que sejam guardadas as médias de RMSE por período. Um data frame para guardar o RMSE de cada estudante da amostra de teste para cada respectiva discplina e a média geral desse RMSE por aluno.
+Para que o cálculo de similaridade seja bem sucedido foi preferido reenumerar as matrículas, a fim de que elas representem mais facilmente a posição do aluno no data frame. Foram retirados o CRA e o Período de Ingresso, pois não eram dados que fazia sentido usar na predição.
+São guardados as notas reais dos alunos para que posteriormente seja feita a comparação e o cálculo do erro.
+```{r estruturas-resultados, include=TRUE}
+# separando em teste e treino
+temp <- createDataPartition(alunos_graduados$Periodo_Ingresso, p = 0.90, list = F)
+temp
+
+rmse_periodo <- as.data.frame(matrix(NA, nrow = 7))
+
+#data frame onde serão guardadas as predições
+predicao_geral <- as.data.frame(matrix(ncol = 7))
+media_rmse <- c(NA)
+predicao_geral <- cbind(predicao_geral, as.data.frame(media_rmse))
+
+#notas de todas as cadeiras de todos os alunos
+dados_treino2 <- alunos_graduados %>% mutate(Matricula = 1:59) %>% select(-cra, - Periodo_Ingresso)
+head(dados_treino2)
+
+resultados2 <- dados_treino2[-temp,]
+resultados2
+```
+
+## Predição
+
+O algoritmo desenvolvido é, claramente, pouco eficiente devido a sua estrutura, mas dada a quantidade de dados considerada ele não, por exemplo, demora na execução, sendo, portanto, viável.
+Ele calcula a predição para as disciplinas de cada período a partir do segundo, já que no primeiro não há dados para fazê-lo. São guardadas as disciplinas para as quais se quer que as notas sejam preditas e as disciplinas que ajudarão na predição.
+As que se deseja calcular são transformadas em NA a fim de que não influenciem, por exemplo, no cálculo de correlação('get_sim').
+São guardados os dados de teste que possuem as notas dos alunos nos períodos anteriores ao que analisado e a nota das cadeiras no período atual como NA. Outra variável contém os valores das linhas dos alunos de teste.
+Feito isso, para cada aluno ao qual se deseja fazer uma predição são calculados os vizinhos mais próximos e, com base nestes, é calculada sua nota para cada cadeira do período atual.
+Por fim, acontece o cálculo do RMSE, de sua média para cada aluno e da amostra, sendo o último considerado o RMSE do período. Todos os dados são guardados em data frames.
+```{r predicao, include = TRUE}
+for(disciplinas_periodo in 2:length(lista_periodos)){
+  # cadeiras que serao usadas no calculo
+  indices_da_vez <- unlist(lista_periodos[1:disciplinas_periodo])
+  treino_valores2 <-  dados_treino2 %>% select(Matricula,indices_da_vez) %>% na.omit()
+  cadeiras_atuais <- unlist(lista_periodos[disciplinas_periodo])
+
+  for(l in 1:lengths(lista_periodos[disciplinas_periodo])) {
+    treino_valores2[-temp,][cadeiras_atuais[l]] <- NA
+  }
+  
+
+  teste_valores2 <- treino_valores2[-temp,]
+  teste_indices2 <- rownames(teste_valores2)
+  # calculando a correlacao entre os alunos que jah pagaram a cadeira e os que nós queremos calcular
+  corr <- treino_valores2 %>% get_sim()
+
+  for(m in 1:length(teste_indices2)) {
+    index <- teste_indices2[m]
+    k_proximos <- get_neigh(teste_valores2, index, corr)
+    for(j in 1:length(cadeiras_atuais)) {
+      pred <- get_score(treino_valores2[, c("Matricula", cadeiras_atuais[j])],
+                        k_proximos, cadeiras_atuais[j])
+      teste_valores2[index, cadeiras_atuais[j]] <- pred
+    }
+  }
+
+  # simplificando os dados
+  dados_reais2 <- alunos_graduados[-temp,cadeiras_atuais]
+  predicao2 <- teste_valores2[, cadeiras_atuais]
+
+  # conversão para quando dados_reais e predicao foram vetores e nao data.frames, a fim de se evitar erro no for seguinte
+  if(class(predicao2) == "numeric"){
+    predicao2 <- as.data.frame(predicao2)
+  }
+  
+  if(class(dados_reais2) == "numeric"){
+    dados_reais2 <- as.data.frame(dados_reais2)
+  }
+
+  erro_rmse <- as.data.frame(matrix(0, nrow = N_ALUNOS, ncol = N_DISC))
+  for(aluno in 1:(N_ALUNOS)){
+    for(cadeira in 1:length(cadeiras_atuais)) {
+      erro_rmse[aluno,cadeira] <- (rmse(sim=predicao2[aluno,cadeira], obs=dados_reais2[aluno,cadeira]))
+    }
+  }
+
+  erro_rmse <- as.data.frame(erro_rmse) %>% 
+    mutate(media_rmse = rowMeans(as.data.frame(erro_rmse)[,1:7])) 
+  rmse_periodo[disciplinas_periodo,] <- mean(as.data.frame(erro_rmse %>% select(media_rmse) %>% na.omit())$media_rmse)
+  predicao_geral <- rbind(predicao_geral, erro_rmse)
+
+}
+```
+
+
+## Olhando os resultados
+
+Como esperado, o erro tende a cair à medida que são acumulados mais dados dos alunos, mas com alguma exceção dependendo da amostra utilizada, como pode ser visto no gráfico das médias de RMSE (eixo x) e do período.
+```{r preparando dado, include = FALSE, echo=FALSE}
+predicao_geral <- predicao_geral %>% na.omit()
+rmse_periodo
+rmse_periodo <- rmse_periodo %>% select(V1) %>% na.omit()
+periodo = c(2:8)
+rmse_periodo <- cbind(rmse_periodo, as.data.frame(periodo))
+rmse_periodo <- rmse_periodo %>% rename(media = V1)
+```
+
+```{r grafico, include=TRUE}
+rmse_periodo
+rmse_periodo %>% ggplot(aes(periodo, media)) + ggtitle("RMSE de CF do segundo ao oitavo período de Ciência da Computação da UFCG") + xlab("Período") + ylab("RMSE") + geom_line()
+```
+
