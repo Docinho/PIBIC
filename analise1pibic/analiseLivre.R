@@ -6,10 +6,7 @@ library(Hmisc)
 #devtools::install_github("ropensci/plotly")
 
 # organizando os dados 
-setwd("~/Área de Trabalho/pastaPibic/pastaCorrente/")
-dados_UFCG <- read.csv("~/Área de Trabalho/alunosUFCGAnon.csv")
-# setwd("~/Área de Trabalho/p/pibic1/")
- dados_UFCG <- read.csv("~/Área de Trabalho/pibic/PIBIC-fase2/alunosUFCGAnon.csv")
+dados_UFCG <- read.csv("alunosUFCGAnon.csv")
 
 ## PARTE 1
 
