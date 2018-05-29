@@ -6,7 +6,7 @@ url <- "https://pre.ufcg.edu.br:8443/ControleAcademicoOnline"
 
 pgsession<-html_session(url)
 pgform<-html_form(pgsession)[[1]]  #in this case the submit is the 2nd form
-filled_form<-set_values(pgform, login="116110076", senha="100%mais")
+filled_form<-set_values(pgform, login="********", senha="*****")
 submit_form(pgsession, filled_form)
   
 urlLogada <- "https://pre.ufcg.edu.br:8443/ControleAcademicoOnline/Controlador?command=AlunoHistorico"
