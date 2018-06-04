@@ -1,40 +1,18 @@
 import pandas as pd
 from sklearn import linear_model
 import numpy as np
-import operator
-#from rpy2.robjects import pandas2ri
-#pandas2ri.activate()
-import os
 exec(open("myLibrary.py").read())
-# import myLibrary // quando roda diretamente no terminal
 
+def entradas_regressao(alunos):
+	# ajustando data frame que servirá de entrada
+	alunos_cc = alunos.query("Cod_Curso == 14102100 & Tipo == 'Obrigatória' ")
+	notas_alunos = alunos_cc
+	notas_alunos['Matricula'] = alunos_cc['Matricula'].map(lambda x: x.lstrip('B'))
+	notas_alunos = pd.pivot_table(notas_alunos, values = 'Media_Disciplina', index = ['Matricula'], columns = 'Nome_Disciplina')
+	corr_disciplinas = notas_alunos.corr() 
+	return(notas_alunos, corr_disciplinas)
 
-
-def predicao(nota_aluno):
-    alunos = pd.read_csv("../alunosUFCGAnon.csv")
-    pre_requisitos = pd.read_csv("../preRequisitos.csv")
-    periodo_disc = pd.read_csv("../periodoDisciplinas.csv")
-
-    # ajustando data frame que servirá de entrada
-    alunos_cc = alunos.query("Cod_Curso == 14102100 & Tipo == 'Obrigatória' ")
-    # alunos_cc.sort_values('Media_Disciplina', ascending=False).drop_duplicates(['Nome_Disciplina','Matricula'])
-    COMPUTACAOtdf = pd.pivot_table(alunos_cc, values = 'Media_Disciplina', index = ['Nome_Disciplina'], columns = 'Matricula')
-    notas_alunos = alunos_cc
-    notas_alunos['Matricula'] = alunos_cc['Matricula'].map(lambda x: x.lstrip('B'))
-    notas_alunos = pd.pivot_table(notas_alunos, values = 'Media_Disciplina', index = ['Matricula'], columns = 'Nome_Disciplina')
-    # cadeiras que não exigem prerrequisito
-    sem_prerequisito = ['DIREITO E CIDADANIA','GERÊNCIA DA INFORMAÇÃO','INFORMÁTICA E SOCIEDADE','MATEMÁTICA DISCRETA',
-                        'METODOLOGIA CIENTÍFICA','SEMINÁRIOS (EDUCAÇÃO AMBIENTAL)','CALCULO DIFERENCIAL E INTEGRAL I',
-                         'PROGRAMAÇÃO I','LABORATÓRIO DE PROGRAMAÇÃO I','ÁLGEBRA VETORIAL E GEOMETRIA ANALÍTICA',
-                           'LEITURA E PRODUCAO DE TEXTOS','INTRODUÇÃO A COMPUTAÇÃO']
-
-    notas_aprovados = alunos_cc.loc[alunos_cc.Situacao == 'Aprovado']
-    notas_aprovados['Matricula'] = notas_aprovados['Matricula'].map(lambda x: x.lstrip('B'))
-    notas_aprovados = pd.pivot_table(notas_aprovados, values = 'Media_Disciplina', index = ['Matricula'], columns = 'Nome_Disciplina')
-
-    #%run util.ipynb
-    corr_disciplinas = notas_alunos.corr() 
-
+def regressao(periodo_disc, corr_disciplinas, notas_alunos):
     # guardandos as regressoes para cada disciplina em um dicionario
     disciplinas_regressoes = {}
     regressoes = {}
@@ -52,48 +30,50 @@ def predicao(nota_aluno):
         X = disciplinas_regressao.loc[:,disciplinas_regressao.columns != disciplina]
         y = disciplinas_regressao.loc[:,disciplinas_regressao.columns == disciplina]
         regressoes[disciplina] = regressao.fit(X,y)
+    return(disciplinas_regressoes, regressoes)
+
+def predicao():
+    # lendo arquivos
+    nota_aluno = pd.read_csv("temp.csv")
+    aluno = nota_aluno.pivot(index="Matricula", values="Média", columns="Disciplina")
+    # informações gerais dos alunos
+    alunos = pd.read_csv("../alunosUFCGAnon.csv")
+    pre_requisitos = pd.read_csv("../preRequisitos.csv")
+    periodo_disc = pd.read_csv("../periodoDisciplinas.csv")
 
     sem_prerequisito = ['DIREITO E CIDADANIA','GERÊNCIA DA INFORMAÇÃO','INFORMÁTICA E SOCIEDADE','MATEMÁTICA DISCRETA',
-                            'METODOLOGIA CIENTÍFICA','SEMINÁRIOS (EDUCAÇÃO AMBIENTAL)','CALCULO DIFERENCIAL E INTEGRAL I',
-                            'PROGRAMAÇÃO I','LABORATÓRIO DE PROGRAMAÇÃO I','ÁLGEBRA VETORIAL E GEOMETRIA ANALÍTICA',
-                            'LEITURA E PRODUCAO DE TEXTOS','INTRODUÇÃO A COMPUTAÇÃO']
+    'METODOLOGIA CIENTÍFICA','SEMINÁRIOS (EDUCAÇÃO AMBIENTAL)','CALCULO DIFERENCIAL E INTEGRAL I',
+    'PROGRAMAÇÃO I','LABORATÓRIO DE PROGRAMAÇÃO I','ALGEBRA VETORIAL E GEOMETRIA ANALÍTICA',
+    'LEITURA E PRODUCAO DE TEXTOS','INTRODUÇÃO A COMPUTAÇÃO']
+    notas_alunos, corr_disciplinas = entradas_regressao(alunos)
 
-        # coletando quais cadeiras o aluno já foi aprovado
-    cadeiras_aluno = pd.DataFrame(data=nota_aluno)
-    cadeiras_pagas = cadeiras_aluno.Disciplina
+    disciplinas_regressoes, regressoes = regressao(periodo_disc, corr_disciplinas, notas_alunos)
+    # vendo quais cadeiras sem prerrequisito já foram pagas pelo aluno
+    cadeiras_pagas = nota_aluno["Disciplina"]
     cadeira_possivel = []
-
-        # vendo quais cadeiras sem prerrequisito já foram pagas pelo aluno
+    print(pre_requisitos)
     for cadeira in sem_prerequisito:
-        if not cadeira in cadeiras_pagas.index:
+        if not (cadeira in cadeiras_pagas.values):
             cadeira_possivel.append(cadeira)
+
     prox_possiveis_cadeiras = prox_cadeiras_nome(cadeiras_pagas, cadeira_possivel, pre_requisitos)
-
+    print("Cadeiras possíveis 2: ", prox_possiveis_cadeiras)
     dict_notas = {}
-    for cadeira in prox_possiveis_cadeiras:
-        if np.sum(np.isin(disciplinas_regressoes[cadeira], cadeiras_pagas)) == len(disciplinas_regressoes[cadeira]):
 
-            #notas = [regressoes[cadeira].predict(test) for test in disciplinas_regressoes[cadeira]]
+    for cadeira in prox_possiveis_cadeiras:
+        if set(disciplinas_regressoes[cadeira]).issubset(set(cadeiras_pagas)):
 
             notas_to_be_predicted = list()
             for ref in disciplinas_regressoes[cadeira]:
                 for index in range(0,len(nota_aluno)):
                     disc = nota_aluno.Disciplina[index]
                     if disc == ref:
-                        value = float(nota_aluno.Média[index].replace(',','.'))
+                        value = float(nota_aluno["Média"][index].replace(',','.'))
                         notas_to_be_predicted.append(value)
 
             a = np.array(notas_to_be_predicted).reshape(1,-1)
             notas = regressoes[cadeira].predict(a)
             dict_notas[cadeira] = notas
-            #info = np.array(cadeiras_aluno[disciplinas_regressoes[cadeira]].values.reshape(1,-1))
-            #dict_notas[cadeira]=(regressoes[cadeira].predict(info))
-            
+    return pd.DataFrame({'Disciplina':dict_notas.keys(), 'Notas':dict_notas.values()})
 
-
-    return nota_aluno
-
-notas = pd.read_csv("../docinho.csv", sep=',')
-#print(notas.Disciplina[2])
-#LEITURA E PRODUCAO DE TEXTOS
-predicao(notas)
+predicao()

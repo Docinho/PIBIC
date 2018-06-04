@@ -19,13 +19,17 @@ def prox_cadeiras(historico, sem_prerequisito):
 
 # definição das cadeiras que o aluno pode se matricular a partir do histórico
 def prox_cadeiras_nome(historico, proximas_cadeiras, prerrequisitos):
+    print("Historico: ", historico)
+    print("==============================")
     #seleciona na coluna de prerequisitos as cadeiras que já foram pagas
-    possibilidades = prerrequisitos.loc[prerrequisitos[prerrequisitos.columns[1]].isin(historico.index)]
+    possibilidades = prerrequisitos.loc[prerrequisitos[prerrequisitos.columns[1]].isin(historico.columns[0])]
+    # print("Possibilidades de acordo com prerequisitos", possibilidades.columns[0])
     possibilidades = possibilidades[[possibilidades.columns[0]]]
     for cadeira in list(possibilidades[possibilidades.columns[0]]):
-        if not cadeira_paga(cadeira,historico.index):
+        print(cadeira)
+        if not cadeira_paga(cadeira,historico[["DISCIPLINA"]]):
             prerrequisitos_cadeira = prerrequisitos.loc[prerrequisitos[prerrequisitos.columns[0]] == cadeira]
-            pre=prerrequisitos_cadeira[prerrequisitos_cadeira.columns[1]].isin(historico.index)
+            pre=prerrequisitos_cadeira[prerrequisitos_cadeira.columns[1]].isin(historico.Disciplina)
             
             prerrequisitos_pagos = True
             for c in pre:
@@ -38,12 +42,13 @@ def prox_cadeiras_nome(historico, proximas_cadeiras, prerrequisitos):
 
 # retorna quais cadeiras o aluno já foi aprovado
 def cadeira_paga(cadeira, historico):
-    cadeira_isin_historico = False
-    for cadeira_paga in historico:
-        if cadeira_paga == cadeira:
-            cadeira_isin_historico = True
-            break
-    return cadeira_isin_historico
+    # print("Historico: ", historico)
+    # cadeira_isin_historico = False
+    # for cadeira_paga in historico:
+    #     if cadeira_paga == cadeira:
+    #         cadeira_isin_historico = True
+    #         break
+    return cadeira in set(historico.Disciplina)
 
 # retorna o código de uma cadeira a partir do seu nome
 def nomeCadeira_para_cod(conj_cadeiras, cod_nome_df):
