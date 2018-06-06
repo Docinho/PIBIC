@@ -19,15 +19,15 @@ def prox_cadeiras(historico, sem_prerequisito):
 
 # definição das cadeiras que o aluno pode se matricular a partir do histórico
 def prox_cadeiras_nome(historico, proximas_cadeiras, prerrequisitos):
-    print("Historico: ", historico)
-    print("==============================")
+    # print("Historico: ", historico)
+    # print("==============================")
     #seleciona na coluna de prerequisitos as cadeiras que já foram pagas
-    possibilidades = prerrequisitos.loc[prerrequisitos[prerrequisitos.columns[1]].isin(historico.columns[0])]
+    possibilidades = prerrequisitos.loc[prerrequisitos[prerrequisitos.columns[1]].isin(historico.Disciplina)]
     # print("Possibilidades de acordo com prerequisitos", possibilidades.columns[0])
     possibilidades = possibilidades[[possibilidades.columns[0]]]
     for cadeira in list(possibilidades[possibilidades.columns[0]]):
-        print(cadeira)
-        if not cadeira_paga(cadeira,historico[["DISCIPLINA"]]):
+        # print(cadeira)
+        if not cadeira_paga(cadeira,historico):
             prerrequisitos_cadeira = prerrequisitos.loc[prerrequisitos[prerrequisitos.columns[0]] == cadeira]
             pre=prerrequisitos_cadeira[prerrequisitos_cadeira.columns[1]].isin(historico.Disciplina)
             

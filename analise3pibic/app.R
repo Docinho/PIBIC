@@ -36,8 +36,7 @@ tabelaNotasFiltradas <- function(df_notas_base) {
   
 }
 
-matricula = "116110076"
-senha = "100%mais"
+
 shinyApp(
   
   ui <- fluidPage( 
