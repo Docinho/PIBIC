@@ -100,7 +100,7 @@ def predicao():
     # diciplinas e modelos das equacoes de regressao
     disciplinas_regressoes, regressoes = regressao(periodo_disc, corr_disciplinas, notas_alunos)
 
-    ## Calculo do desempenho do aluno 
+    ## Calculo do desempenho do aluno
     # cadeiras pagas pelo aluno
     cadeiras_pagas_df = nota_aluno[["Disciplina"]]
     cadeiras_pagas = nota_aluno["Disciplina"].values
