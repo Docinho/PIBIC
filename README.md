@@ -7,3 +7,5 @@ O projeto é uma continuidade do [Cursos UFCG](http://analytics.ufcg.edu.br/curs
 * analise1pibic: códigos utilizados na fase de imersão nos dados; 
 * analise2pibic: algoritmos de machine learning _collaborative filtering_ e _linear regression_;
 * analise3pibic: construção do modelo a ser implementado.
+    - Montagem de uma aplicação simples na qual é possível, através da senha e matrícula do aluno da grade antiga de Ciência da Computação, ter uma prévia do possível desempenho do aluno em cadeiras que o algoritmo tem dados suficientes para calcular.
+    ![alt text](analise3pibic/displaying)
