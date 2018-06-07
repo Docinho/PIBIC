@@ -75,15 +75,9 @@ def predicao():
     'LEITURA E PRODUCAO DE TEXTOS','INTRODUCAO A COMPUTACAO']
     notas_alunos, corr_disciplinas = entradas_regressao(alunos)
 
-
-    # print(list(notas_alunos.columns.values))
-    # notas_alunos.columns = [x.lower() for x in corrigir_nomes(list(notas_alunos.columns.values))]
-    #
-
-
     disciplinas_regressoes, regressoes = regressao(periodo_disc, corr_disciplinas, notas_alunos)
     # vendo quais cadeiras sem prerrequisito já foram pagas pelo aluno
-    # print(nota_aluno["Disciplina"].values)
+
     cadeiras_pagas_df = nota_aluno[["Disciplina"]]
     cadeiras_pagas = nota_aluno["Disciplina"].values
     cadeira_possivel = []
@@ -93,16 +87,11 @@ def predicao():
             cadeira_possivel.append(cadeira)
 
     prox_possiveis_cadeiras = prox_cadeiras_nome(cadeiras_pagas_df, cadeira_possivel, pre_requisitos)
-    # print("Cadeiras possíveis 2: ", prox_possiveis_cadeiras)
-    # print(prox_possiveis_cadeiras)
+
     dict_notas = {}
 
     for cadeira in prox_possiveis_cadeiras:
-        # if(cadeira == "FUNDAMENTOS DE FISICA MODERNA"):
-        #     print("Cadeira: ", cadeira)
-        #     print(disciplinas_regressoes[cadeira])
-        #     print(set(cadeiras_pagas))
-        #     print("=====================================")
+
         if set(disciplinas_regressoes[cadeira]).issubset(set(cadeiras_pagas)):
 
             notas_to_be_predicted = list()
@@ -116,7 +105,6 @@ def predicao():
             a = np.array(notas_to_be_predicted).reshape(1,-1)
             notas = regressoes[cadeira].predict(a)[0][0]
             dict_notas[cadeira] = math.floor(notas * 10)
-    # dict_notas = {'Disciplina':dict_notas.keys(), 'Notas':dict_notas.values()}
 
     df = pd.Series(data = dict_notas).to_frame()
     df.columns = ["Probabilidade de Aprovação (%)"]
