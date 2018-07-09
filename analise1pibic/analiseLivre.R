@@ -6,7 +6,7 @@ library(Hmisc)
 #devtools::install_github("ropensci/plotly")
 
 # organizando os dados 
-dados_UFCG <- read.csv("alunosUFCGAnon.csv")
+dados_UFCG <- read.csv("../alunosUFCGAnon.csv")
 
 ## PARTE 1
 
@@ -21,11 +21,9 @@ dados_mediana %>% ggplot(aes (x = factor(reorder(Cod_Curso, Mediana_Curso, na.rm
 
 #agrupando os cursos com maior mediana
 medianas_cursos <- aggregate(x = dados_mediana$Media_Disciplina, by = list("Cod_Curso" = factor(dados_mediana$Cod_Curso), "Nome_Curso" = dados_mediana$Nome_Curso, "Campus" = dados_mediana$Campus), FUN = median, na.rm = T)
-#por que usa "factor" em Cod_Curso 
 colnames(medianas_cursos)[4] <- "Mediana_Curso"
 medianas_cursos <- medianas_cursos[order(medianas_cursos$Mediana_Curso), ]
 
-#count(dados_mediana)
 cursos_maiores_medianas <- medianas_cursos[95:85, ]
 cursos_menores_medianas <- medianas_cursos[1:10, ]
 
@@ -219,6 +217,5 @@ ggplot(occurrance_cc, aes(group =  occurrance_cc$Situacao,y = occurrance_cc$Porc
   geom_line(stat="identity") + ylab("Porcentagem de alunos(100%)") + xlab("Periodo") +
   labs(color = "Periodo") #+ layout(title("Porcentagem de situações em Computação por periodo de quando houve greve"))
 
-ggplot(occurrance_nao_greve_cc, aes(group =  occurrance_nao_greve_cc$Situacao,y = occurrance_nao_greve_cc$Porcentagem, x = occurrance_nao_greve_cc$Periodo, color = occurrances_nao_greve_cc$Situacao)) +
-  geom_line(stat="identity") + ylab("Porcentagem de alunos(100%)") + xlab("Periodo") + theme(axis.text.x = element_text(angle = 90, hjust = 1))
-labs(color = "Periodo")# + layout(title("Porcentagem de situações em Computação por periodo de quando não houve greve"))
+ggplot(occurrance_nao_greve_cc, aes(group =  occurrance_nao_greve_cc$Situacao,y = occurrance_nao_greve_cc$Porcentagem, x = occurrance_nao_greve_cc$Periodo, color = occurrance_nao_greve_cc$Situacao)) +
+  geom_line(stat="identity") + ylab("Porcentagem de alunos(100%)") + xlab("Periodo") + theme(axis.text.x = element_text(angle = 90, hjust = 1)) 
