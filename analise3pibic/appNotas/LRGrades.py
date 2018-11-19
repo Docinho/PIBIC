@@ -24,9 +24,10 @@ def corrigir_nomes(nome):
 
 
 # ajustando data frame que servirá de entrada para o algoritmo -- retorno: notas dos alunos(alunos x disciplina) e matriz de correlacao de disciplinas
-def entradas_regressao(alunos):
+def entradas_regressao(alunos, disciplinas):
 
     alunos_cc = alunos.query("Cod_Curso == 14102100 & Tipo == 'Obrigatória' ")
+    alunos_cc = alunos_cc[alunos_cc["Nome_Disciplina"].isin(disciplinas)]
     alunos_cc['Nome_Disciplina'] = alunos_cc['Nome_Disciplina'].apply(corrigir_nomes).apply(lambda x: x.upper())
     notas_alunos = alunos_cc
     notas_alunos['Matricula'] = alunos_cc['Matricula'].map(lambda x: x.lstrip('B'))
@@ -75,6 +76,7 @@ def predicao():
 
     # informações gerais dos alunos
     alunos = pd.read_csv("../../alunosUFCGAnon.csv")
+    alunos["Nome_Disciplina"] = alunos["Nome_Disciplina"].apply(corrigir_nomes)
 
     # df de disciplinas e prerrequitos
     pre_requisitos = pd.read_csv("../../preRequisitos.csv")
@@ -93,17 +95,18 @@ def predicao():
     'PROGRAMACAO I','LABORATORIO DE PROGRAMACAO I','ALGEBRA VETORIAL E GEOMETRIA ANALITICA',
     'LEITURA E PRODUCAO DE TEXTOS','INTRODUCAO A COMPUTACAO']
 
-    ## Organizando os dados e calculando as equações
-    # df de notas e correlacao para a regressao
-    notas_alunos, corr_disciplinas = entradas_regressao(alunos)
-
-    # diciplinas e modelos das equacoes de regressao
-    disciplinas_regressoes, regressoes = regressao(periodo_disc, corr_disciplinas, notas_alunos)
-
     ## Calculo do desempenho do aluno
     # cadeiras pagas pelo aluno
     cadeiras_pagas_df = nota_aluno[["Disciplina"]]
     cadeiras_pagas = nota_aluno["Disciplina"].values
+    
+    ## Organizando os dados e calculando as equações
+    # df de notas e correlacao para a regressao
+    notas_alunos, corr_disciplinas = entradas_regressao(alunos,cadeiras_pagas)
+
+    # diciplinas e modelos das equacoes de regressao
+    disciplinas_regressoes, regressoes = regressao(periodo_disc, corr_disciplinas, notas_alunos)
+
     cadeira_possivel = []
 
     # vendo quais cadeiras sem prerrequisito já foram pagas pelo aluno
@@ -129,8 +132,10 @@ def predicao():
                     if disc == ref:
                         value = float(nota_aluno[mediaString][index].replace(',','.'))
                         grades_to_be_predicted.append(value)
+                print(grades_to_be_predicted)
             # calculando os possiveis desempenhos
             a = np.array(grades_to_be_predicted).reshape(1,-1)
+            print(a)
             notas = regressoes[cadeira].predict(a)[0][0]
             dict_notas[cadeira] = math.floor(notas * 10)
 
