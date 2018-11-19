@@ -46,12 +46,14 @@ def regressao(periodo_disc, corr_disciplinas, notas_alunos):
     regressao = linear_model.LinearRegression()
 
     for disciplina in periodo_disc[disciplinaString]:
+        print("---------------",disciplina)
         # pegando o periodo da disciplina da iteração
         periodo = periodo_disc.loc[periodo_disc[disciplinaString] == disciplina][periodoString].values[0]
 
         # pegando as disciplinas que são do mesmo periodo ou anteriores a disciplina em questão
         disciplinas_regressao = periodo_disc.loc[periodo_disc[periodoString]<=periodo][disciplinaString].values
-
+        print("----------------------conseguiu disciplinas reg")
+        print(corr_disciplinas.head())
         # selecionando as cinco disciplinas mais correlacionadas com a atual e que serão usadas para formar as equações
         disciplinas_regressao = np.setdiff1d(corr_disciplinas.loc[disciplinas_regressao].sort_values(by=disciplina,ascending=False).drop([disciplina])[[disciplina]][:5].index, disciplina)
 
@@ -77,7 +79,7 @@ def predicao():
     # informações gerais dos alunos
     alunos = pd.read_csv("../../alunosUFCGAnon.csv")
     alunos["Nome_Disciplina"] = alunos["Nome_Disciplina"].apply(corrigir_nomes)
-
+    
     # df de disciplinas e prerrequitos
     pre_requisitos = pd.read_csv("../../preRequisitos.csv")
     pre_requisitos[disciplinaString] = pre_requisitos[disciplinaString].apply(corrigir_nomes).apply(lambda x: x.upper())
@@ -103,7 +105,8 @@ def predicao():
     ## Organizando os dados e calculando as equações
     # df de notas e correlacao para a regressao
     notas_alunos, corr_disciplinas = entradas_regressao(alunos,cadeiras_pagas)
-
+    print(corr_disciplinas.head())
+    corr_disciplinas["Nome_Disciplina"] = corr_disciplinas["Nome_Disciplina"].apply(corrigir_nomes)
     # diciplinas e modelos das equacoes de regressao
     disciplinas_regressoes, regressoes = regressao(periodo_disc, corr_disciplinas, notas_alunos)
 
@@ -145,3 +148,5 @@ def predicao():
     df[disciplinaStringLower] = df.index
     df = df[[disciplinaStringLower,"Probabilidade de Aprovação (%)"]]
     return df
+
+print(predicao())
