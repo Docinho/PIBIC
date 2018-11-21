@@ -13,7 +13,7 @@ prerequisitoPrerequisito = 'PREREQUISITO'
 # nome da coluna disciplina no df de Periodo
 periodoString = 'PERIODO'
 # nome da média do aluno no historico
-mediaString = 'Média'
+mediaString = 'Media'
 
 
 # eliminacao de acentos
@@ -115,24 +115,26 @@ def predicao():
     prox_possiveis_cadeiras = prox_cadeiras_nome(cadeiras_pagas_df, cadeira_possivel, pre_requisitos)
 
     dict_notas = {}
-
     # calculando possivel desempenho do aluno
     for cadeira in prox_possiveis_cadeiras:
         # verificando se todas as cadeiras necessarias para o calculo foram cursadas pelo aluno
         # caso contrario o modelo nao eh possivel de ser utilizado
         if set(disciplinas_regressoes[cadeira]).issubset(set(cadeiras_pagas)):
+            
             # coletando as disciplinas necesarias para o calculo e suas respectivas notas refatoradas
             grades_to_be_predicted = list()
             for ref in disciplinas_regressoes[cadeira]:
                 for index in range(0,len(nota_aluno)):
                     disc = nota_aluno.Disciplina[index]
                     if disc == ref:
-                        value = float(nota_aluno[mediaString][index].replace(',','.'))
+                        value = float(nota_aluno[mediaString][index])
+                        #.replace(',','.'))
                         grades_to_be_predicted.append(value)
             # calculando os possiveis desempenhos
             a = np.array(grades_to_be_predicted).reshape(1,-1)
             notas = regressoes[cadeira].predict(a)[0][0]
-            dict_notas[cadeira] = math.floor(notas * 10)
+            dict_notas[cadeira] = str(math.floor(abs(notas)))[0:2]
+            print(notas)
 
     # organizando df resultante a ser exibido
     df = pd.Series(data = dict_notas).to_frame()
@@ -140,3 +142,5 @@ def predicao():
     df[disciplinaStringLower] = df.index
     df = df[[disciplinaStringLower,"Probabilidade de Aprovação (%)"]]
     return df
+
+print(predicao())

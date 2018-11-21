@@ -72,7 +72,7 @@ shinyServer(function(input, output, session) {
   )
   
   output$table <- renderDataTable(
-    USER$df,
+    read.csv("temp.csv"),
     options = list(
       pageLength = 100
       

@@ -10,11 +10,11 @@ library(knitr)
 library(kableExtra)
 
 # leitura dos dados dos alunos da UFCG
-dados_alunos <- read.csv("alunosUFCGAnon.csv") 
+dados_alunos <- read.csv("../../alunosUFCGAnon.csv") 
 
 # filtragem dos alunos de Computação que não evadiram e suas respectivas notas nas cadeiras obrigatórias
 dados_aluno_cc <- dados_alunos %>% filter(Cod_Curso == 14102100 & Cod_Evasao == 0 & Tipo == "Obrigatória")
-
+dados_aluno_cc <- dados_aluno_cc %>% filter(!is.na(Media_Disciplina))
 # geração de tabela com estilo html para melhor leitura dos dados // optativa
 # kable(dados_aluno_cc, "html") %>% kable_styling(bootstrap_options = "striped", full_width = F)
 
@@ -23,7 +23,9 @@ dados_aluno_cc <- dados_aluno_cc %>% mutate(Matricula = factor(Matricula)) %>% a
   select(Matricula, Cod_Disciplina, Nome_Disciplina, Periodo, Creditos, Media_Disciplina, Situacao, Periodo_Ingresso, Periodo_Relativo)
 
 # cálculo da média das notas dos alunos em todas as disciplinas removevendo os alunos que trancaram alguma cadeira, pois com isso sua média fica NA
-dados_aluno_cc <- dados_aluno_cc %>% group_by(Matricula) %>% mutate(Media = round(mean(Media_Disciplina), digits = 2)) %>% filter(!is.na(Media))
+colnames(parc) <- c("Matricula","Media")
+parc <- aggregate(dados_aluno_cc$Media_Disciplina, list(dados_aluno_cc$Matricula),mean)
+dados_aluno_cc <- merge(parc, dados_aluno_cc, by=c("Matricula"))
 
 # cálulo do CRA
 alunos_cra <- dados_aluno_cc %>% mutate(Cra.Crontibute = Media*Creditos) %>% summarise(cra = sum(Cra.Crontibute)/sum(Creditos))
@@ -31,14 +33,14 @@ alunos_cra <- dados_aluno_cc %>% mutate(Cra.Crontibute = Media*Creditos) %>% sum
 # criando data frame com as notas de aprovação de cada aluno na respectiva cadeira e seu CRA e renomeando as disicplinas
 alunos_max_media <- dados_aluno_cc %>% group_by(Matricula, Media_Disciplina) %>% filter(Media_Disciplina == max(Media_Disciplina)) %>% ungroup() %>%
   select(Nome_Disciplina, Matricula, Media_Disciplina) %>% mutate(Nome_Disciplina = as.factor(gsub(" ", ".", Nome_Disciplina))) %>%
-  dcast(Matricula ~ Nome_Disciplina, mean) %>% merge(alunos_cra)
+  dcast(Matricula ~ Nome_Disciplina, mean) %>% merge(alunos_cra) 
 
 # adicionando coluna de período de ingresso
 alunos_max_media <- bind_cols(alunos_max_media,distinct(dados_aluno_cc %>% select(Matricula, Periodo_Ingresso)) %>% select(Periodo_Ingresso)) %>% select(-Matricula1)
 
 # removendo os alunos que não pagaram alguma cadeira / seleção apenas dos graduados
 alunos_graduados <- alunos_max_media[complete.cases(alunos_max_media), ]
-
+head(alunos_graduados)
 ##Organizando os data frames principais
 
 # data grames das notas dos alunos por periodo

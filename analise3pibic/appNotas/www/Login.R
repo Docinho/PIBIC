@@ -42,7 +42,7 @@ observeEvent(input$Login , {
     USER$name <- Username
     USER$df <- df_notas_base
     # escrevendo arquivo de notas
-    write.csv(df_notas_base, "temp.csv", row.names = FALSE)
+    # write.csv(df_notas_base, "temp.csv", row.names = FALSE)
     } else {
     USER$pass <- "User name or password failed!"
   }
